@@ -1,0 +1,233 @@
+{% extends "layout.html" %}
+{% block title %}Billing | TallyOpen{% endblock %}
+{% block content %}
+
+<!-- STATS -->
+<div class="stats-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
+    <div class="stat-card">
+        <div class="sc-icon" style="background:#EEF2FF;color:var(--accent);"><i class="fas fa-file-invoice"></i></div>
+        <div class="sc-label">Total Bills Made <span class="tip-icon" data-tip="Total number of bills/invoices you have created for customers.">?</span></div>
+        <div class="sc-value">{{ invoices|length }}</div>
+        <div class="sc-meta">Generated so far</div>
+    </div>
+    <div class="stat-card">
+        <div class="sc-icon" style="background:#DCFCE7;color:#15803D;"><i class="fas fa-check-circle"></i></div>
+        <div class="sc-label">Ready to Email <span class="tip-icon" data-tip="Bills for customers who have an email address saved — you can send these instantly.">?</span></div>
+        <div class="sc-value">{{ invoices|selectattr(5)|list|length }}</div>
+        <div class="sc-meta">Email addresses saved</div>
+    </div>
+    <div class="stat-card">
+        <div class="sc-icon" style="background:#FEF3C7;color:#D97706;"><i class="fas fa-clock"></i></div>
+        <div class="sc-label">No Email Yet <span class="tip-icon" data-tip="Bills for customers without an email address on file. Add their email in Accounts &amp; People to enable emailing.">?</span></div>
+        <div class="sc-value">{{ invoices|rejectattr(5)|list|length }}</div>
+        <div class="sc-meta">No email saved</div>
+    </div>
+    <div class="stat-card">
+        <div class="sc-icon" style="background:#EFF6FF;color:#2563EB;"><i class="fas fa-percent"></i></div>
+        <div class="sc-label">GST Tax Rate <span class="tip-icon" data-tip="The standard GST tax rate applied to your bills. You can change this per bill when creating one.">?</span></div>
+        <div class="sc-value">18%</div>
+        <div class="sc-meta">Default rate</div>
+    </div>
+</div>
+
+<!-- MAIN GRID -->
+<div class="grid-2">
+
+    <!-- LEFT: Create Bill -->
+    <section>
+        <div class="section-header">
+            <h2><i class="fas fa-file-pdf" style="color:var(--accent);margin-right:8px;"></i>Create a New Bill
+                <span class="tip-icon" data-tip="Fill in customer details and choose what you sold to generate a professional tax invoice/bill as a PDF.">?</span>
+            </h2>
+        </div>
+
+        <form action="/generate-invoice" method="POST">
+            <label class="form-label">Your Company (Seller) <span class="tip-icon" data-tip="Choose which of your companies is selling the goods. Your name will appear on the bill.">?</span></label>
+            <select name="company_id" required>
+                <option value="">Select Company</option>
+                {% for c in companies %}<option value="{{ c[0] }}">{{ c[1] }}</option>{% endfor %}
+            </select>
+
+            <label class="form-label">Customer Name <span class="tip-icon" data-tip="The name of the person or shop you are selling to. This will appear on the bill.">?</span></label>
+            <input type="text" name="customer_name" placeholder="e.g. Ramesh Kumar" required>
+
+            <label class="form-label">Customer GST Number (Optional) <span class="tip-icon" data-tip="If your customer is GST registered, enter their number here. Leave blank if they don't have one.">?</span></label>
+            <input type="text" name="customer_gst" placeholder="e.g. 07ABCDE1234F1Z5"
+                oninput="this.value=this.value.toUpperCase()">
+
+            <label class="form-label">Item / Product Sold <span class="tip-icon" data-tip="Choose what you sold from your stock list. The price will be auto-filled.">?</span></label>
+            <select name="item_id" required>
+                <option value="">Choose from your Stock</option>
+                {% for i in inventory %}<option value="{{ i[0] }}">
+                    {{ i[1] }} &mdash; &#8377;{{ "{:,.2f}".format(i[3]) }}
+                </option>{% endfor %}
+            </select>
+
+            <div class="grid-2">
+                <div>
+                    <label class="form-label">How Many? (Quantity) <span class="tip-icon" data-tip="Enter how many units/pieces of this item you are selling.">?</span></label>
+                    <input type="number" step="0.01" name="quantity" placeholder="1" required>
+                </div>
+                <div>
+                    <label class="form-label">GST Tax Rate <span class="tip-icon" data-tip="The GST percentage to add on top of the price. In India, common rates are 5%, 12%, 18%, or 28%.">?</span></label>
+                    <select name="gst_rate" required>
+                        <option value="18" selected>18% GST</option>
+                        <option value="12">12% GST</option>
+                        <option value="5">5% GST</option>
+                        <option value="28">28% GST</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Live Preview -->
+            <div id="invoicePreview"
+                style="display:none;background:#F9F9FF;border-radius:10px;padding:16px;margin-bottom:16px;border:1px solid var(--border);">
+                <div
+                    style="font-size:12px;font-weight:700;color:var(--text-2);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">
+                    Bill Preview</div>
+                <div class="metric-row" style="padding:6px 0;border:none;">
+                    <span class="metric-label">Price before tax</span><span class="metric-value" id="prev-sub">&#8377;0.00</span>
+                </div>
+                <div class="metric-row" style="padding:6px 0;border:none;">
+                    <span class="metric-label">CGST (half of GST)</span><span class="metric-value" id="prev-cgst">&#8377;0.00</span>
+                </div>
+                <div class="metric-row" style="padding:6px 0;border:none;">
+                    <span class="metric-label">SGST (half of GST)</span><span class="metric-value" id="prev-sgst">&#8377;0.00</span>
+                </div>
+                <div style="border-top:2px solid var(--accent);margin:8px 0;"></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-weight:700;color:var(--text);">Total to Pay</span>
+                    <span style="font-size:18px;font-weight:700;color:var(--accent);" id="prev-total">&#8377;0.00</span>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;height:48px;">
+                <i class="fas fa-file-pdf"></i> Create Bill &amp; Download PDF
+            </button>
+        </form>
+    </section>
+
+    <!-- RIGHT: Bill History -->
+    <section>
+        <div class="section-header">
+            <h2>Bill History <span class="tip-icon" data-tip="All the bills/invoices you have created so far. Click Email to send a bill to a customer.">?</span></h2>
+            <input type="text" placeholder="Search..." id="invSearch" onkeyup="filterInv()"
+                style="width:140px;margin:0;padding:7px 12px;font-size:12px;">
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Customer</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th style="text-align:right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="invTbody">
+                {% for inv in invoices %}
+                <tr>
+                    <td>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <div
+                                style="width:30px;height:30px;background:var(--accent-soft);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--accent);">
+                                {{ inv[2][0].upper() }}
+                            </div>
+                            <strong>{{ inv[2] }}</strong>
+                        </div>
+                    </td>
+                    <td style="font-size:12px;color:var(--text-2);">{{ inv[1] }}</td>
+                    <td>
+                        {% if inv[5] %}
+                        <span class="chip chip-green"><i class="fas fa-circle"
+                                style="font-size:7px;margin-right:4px;"></i>Ready</span>
+                        {% else %}
+                        <span class="chip chip-orange">No Email</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align:right;">
+                        <button class="btn btn-outline btn-sm"
+                            onclick="openEmailModal('{{ inv[0] }}','{{ inv[5] or '' }}')">
+                            <i class="fas fa-envelope"></i> Email
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% if not invoices %}
+        <div class="empty-state">
+            <i class="fas fa-file-invoice"></i>
+            <p style="font-size:14px;font-weight:600;color:var(--text-2);">No invoices yet</p>
+            <p style="font-size:13px;">Generate your first tax invoice.</p>
+        </div>
+        {% endif %}
+    </section>
+</div>
+
+<!-- EMAIL MODAL -->
+<div id="emailModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-top">
+            <h2><i class="fas fa-envelope" style="color:var(--accent);margin-right:8px;"></i>Email Invoice</h2>
+            <button class="close-modal" onclick="document.getElementById('emailModal').classList.remove('active')"><i
+                    class="fas fa-times"></i></button>
+        </div>
+        <div style="background:var(--accent-soft);border-radius:10px;padding:12px 16px;margin-bottom:18px;">
+            <p style="font-size:13px;color:var(--accent);font-weight:600;">
+                <i class="fas fa-paperclip" style="margin-right:6px;"></i>Invoice PDF will be attached automatically
+            </p>
+        </div>
+        <form action="/send-invoice-email" method="POST">
+            <input type="hidden" id="emailVoucherId" name="voucher_id">
+            <label class="form-label">Recipient Email Address</label>
+            <input type="email" id="targetEmail" name="email" placeholder="customer@example.com" required>
+            <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;height:46px;">
+                <i class="fas fa-paper-plane"></i> Send Invoice
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openEmailModal(id, email) {
+        document.getElementById('emailVoucherId').value = id;
+        document.getElementById('targetEmail').value = email || '';
+        document.getElementById('emailModal').classList.add('active');
+    }
+
+    function filterInv() {
+        const q = document.getElementById('invSearch').value.toLowerCase();
+        document.querySelectorAll('#invTbody tr').forEach(r => {
+            r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+        });
+    }
+
+    // Live preview calculator — read rates from option text (e.g. "Laptop — ₹45,000.00")
+    const _rateMap = {};
+    document.querySelectorAll('select[name=item_id] option').forEach(opt => {
+        const m = opt.textContent.match(/₹([\d,]+\.?\d*)/);
+        if (opt.value && m) _rateMap[opt.value] = parseFloat(m[1].replace(/,/g, ''));
+    });
+    function updatePreview() {
+        const itemId = document.querySelector('select[name=item_id]').value;
+        const qty = parseFloat(document.querySelector('input[name=quantity]').value) || 0;
+        const gstRate = parseFloat(document.querySelector('select[name=gst_rate]').value) || 18;
+        const rate = _rateMap[itemId] || 0;
+        if (itemId && qty > 0) {
+            const sub = rate * qty;
+            const gst = sub * gstRate / 100;
+            document.getElementById('prev-sub').textContent = '₹' + sub.toFixed(2);
+            document.getElementById('prev-cgst').textContent = '₹' + (gst / 2).toFixed(2);
+            document.getElementById('prev-sgst').textContent = '₹' + (gst / 2).toFixed(2);
+            document.getElementById('prev-total').textContent = '₹' + (sub + gst).toFixed(2);
+            document.getElementById('invoicePreview').style.display = 'block';
+        } else {
+            document.getElementById('invoicePreview').style.display = 'none';
+        }
+    }
+    document.querySelector('select[name=item_id]').addEventListener('change', updatePreview);
+    document.querySelector('input[name=quantity]').addEventListener('input', updatePreview);
+    document.querySelector('select[name=gst_rate]').addEventListener('change', updatePreview);
+</script>
+{% endblock %}

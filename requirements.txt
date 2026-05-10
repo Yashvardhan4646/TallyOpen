@@ -1,0 +1,7 @@
+flask
+mysql-connector-python
+fpdf2
+pandas
+openpyxl
+google-generativeai
+requests

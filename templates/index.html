@@ -1,0 +1,294 @@
+{% extends 'layout.html' %}
+{% block content %}
+
+<!-- QUICK ACTIONS -->
+<div class="quick-actions">
+    <a href="/vouchers" class="quick-action"><i class="fas fa-plus-circle" style="color:var(--accent);"></i> New Money Entry</a>
+    <a href="/billing" class="quick-action"><i class="fas fa-file-invoice" style="color:var(--green);"></i> Create a Bill</a>
+    <a href="/reports" class="quick-action"><i class="fas fa-chart-line" style="color:var(--orange);"></i> Business Health</a>
+    <a href="/inventory" class="quick-action"><i class="fas fa-boxes" style="color:#8B5CF6;"></i> Check Stock</a>
+</div>
+
+<!-- STAT CARDS -->
+<div class="stats-row">
+    <!-- Total Value -->
+    <div class="stat-card" style="background:var(--accent);border:none;color:white;">
+        <div style="font-size:11px;font-weight:600;opacity:0.7;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">
+            Total Business Value <span class="tip-icon" data-tip="The total estimated value of your business including cash, stock, and money people owe you.">?</span>
+        </div>
+        <div style="font-size:28px;font-weight:700;letter-spacing:-1px;margin-bottom:8px;">
+            ₹{{ "{:,.0f}".format(total_balance) }}
+        </div>
+        <div style="font-size:12px;opacity:0.75;">Overall Worth</div>
+        <div style="position:absolute;right:20px;top:18px;width:40px;height:40px;background:rgba(255,255,255,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;">
+            <i class="fas fa-landmark"></i>
+        </div>
+    </div>
+
+    <!-- Stock Value -->
+    <div class="stat-card">
+        <div class="sc-icon" style="background:#EEF2FF;color:#6366F1;">
+            <i class="fas fa-boxes"></i>
+        </div>
+        <div class="sc-label">Stock Value <span class="tip-icon" data-tip="The total money value of all items currently in your shop/warehouse.">?</span></div>
+        <div class="sc-value">₹{{ "{:,.0f}".format(total_balance - liquid_cash - receivables) }}</div>
+        <div class="sc-meta">
+            Value of goods
+        </div>
+    </div>
+
+    <!-- Receivables -->
+    <div class="stat-card">
+        <div class="sc-icon" style="background:#FEF3C7;color:#D97706;">
+            <i class="fas fa-hand-holding-usd"></i>
+        </div>
+        <div class="sc-label">Money People Owe You <span class="tip-icon" data-tip="Money that customers still need to pay you for things they bought.">?</span></div>
+        <div class="sc-value">₹{{ "{:,.0f}".format(receivables) }}</div>
+        <div class="sc-meta">
+            Outstanding bills
+        </div>
+    </div>
+
+    <!-- Liquid Cash -->
+    <div class="stat-card">
+        <div class="sc-icon" style="background:#DCFCE7;color:#15803D;">
+            <i class="fas fa-wallet"></i>
+        </div>
+        <div class="sc-label">Cash on Hand <span class="tip-icon" data-tip="Actual money you have in your cash box and bank accounts right now.">?</span></div>
+        <div class="sc-value">₹{{ "{:,.0f}".format(liquid_cash) }}</div>
+        <div class="sc-meta">
+            Spendable money
+        </div>
+    </div>
+</div>
+
+<!-- MAIN CONTENT GRID -->
+<div class="grid-main">
+
+    <!-- LEFT: Charts + Transactions -->
+    <div>
+        <!-- Performance Trend -->
+        <section>
+            <div class="section-header">
+                <h2>Monthly Money Trend <span class="tip-icon" data-tip="A graph showing how your business value has changed month by month.">?</span></h2>
+            </div>
+            <div style="height:200px;">
+                <canvas id="balanceChart"></canvas>
+            </div>
+        </section>
+
+        <!-- Income vs Expense Bar -->
+        <section>
+            <div class="section-header">
+                <h2>Money In vs Money Out <span class="tip-icon" data-tip="Comparing how much money you earned (Income) vs how much you spent (Expense).">?</span></h2>
+                <div style="display:flex;gap:6px;">
+                    <span class="chip chip-purple">Money Out</span>
+                    <span class="chip chip-green">Money In</span>
+                </div>
+            </div>
+            <div style="height:180px;">
+                <canvas id="ieBarChart"></canvas>
+            </div>
+        </section>
+
+        <!-- Recent Transactions -->
+        <section>
+            <div class="section-header">
+                <h2>Recent Activity <span class="tip-icon" data-tip="The last few money entries or bills you created.">?</span></h2>
+                <a href="/vouchers">View All →</a>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type <span class="tip-icon" data-tip="What kind of entry this was.">?</span></th>
+                        <th>Account / Person <span class="tip-icon" data-tip="Who this money entry was with.">?</span></th>
+                        <th style="text-align:right;">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for act in recent_activity %}
+                    <tr>
+                        <td style="color:var(--text-2);">{{ act[0] }}</td>
+                        <td><span class="chip chip-gray">{{ act[1] }}</span></td>
+                        <td><strong>{{ act[2] }}</strong></td>
+                        <td style="text-align:right;font-weight:700;color:var(--accent);">₹{{ "{:,.2f}".format(act[3])
+                            }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </div>
+
+    <!-- RIGHT: Statistics Panel -->
+    <div>
+        <!-- Donut: Inventory Mix -->
+        <section>
+            <div class="section-header">
+                <h2>Stock Breakdown <span class="tip-icon" data-tip="Which items make up most of your stock.">?</span></h2>
+            </div>
+            <div style="text-align:center;position:relative;height:180px;margin-bottom:16px;">
+                <canvas id="inventoryChart"></canvas>
+                <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-55%);text-align:center;">
+                    <div style="font-size:20px;font-weight:700;color:var(--text);">{{ inv_values|sum }}</div>
+                    <div style="font-size:11px;color:var(--text-3);margin-top:2px;">Total Units</div>
+                </div>
+            </div>
+            <!-- Legend -->
+            <div id="donut-legend" style="display:flex;flex-direction:column;gap:10px;margin-top:8px;"></div>
+        </section>
+
+        <!-- Asset Breakdown -->
+        <section>
+            <div class="section-header">
+                <h2>Where is the Money? <span class="tip-icon" data-tip="A breakdown of where your business value is currently sitting.">?</span></h2>
+            </div>
+            <div class="metric-row">
+                <div>
+                    <div class="metric-label">Cash on Hand</div>
+                    <div class="progress-bar" style="width:120px;margin-top:6px;">
+                        <div class="progress-fill"
+                            style="width:{{ (liquid_cash/total_balance*100)|round(0)|int if total_balance > 0 else 0 }}%;background:#22C55E;">
+                        </div>
+                    </div>
+                </div>
+                <div class="metric-value">₹{{ "{:,.0f}".format(liquid_cash) }}</div>
+            </div>
+            <div class="metric-row">
+                <div>
+                    <div class="metric-label">Money Owed to You</div>
+                    <div class="progress-bar" style="width:120px;margin-top:6px;">
+                        <div class="progress-fill"
+                            style="width:{{ (receivables/total_balance*100)|round(0)|int if total_balance > 0 else 0 }}%;background:#F97316;">
+                        </div>
+                    </div>
+                </div>
+                <div class="metric-value">₹{{ "{:,.0f}".format(receivables) }}</div>
+            </div>
+        </section>
+
+        <!-- Top 5 Inventory Items -->
+        <section>
+            <div class="section-header">
+                <h2>Top Stock Items <span class="tip-icon" data-tip="The items you have the most of in stock.">?</span></h2><a href="/inventory">View All →</a>
+            </div>
+            {% for label, val in zip(inv_labels[:5], inv_values[:5]) %}
+            <div class="metric-row">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <div
+                        style="width:8px;height:8px;border-radius:50%;background:{{ ['var(--accent)','#F97316','#111827','#6B7280','#E2E8F0'][loop.index0] }};flex-shrink:0;">
+                    </div>
+                    <span class="metric-label">{{ label }}</span>
+                </div>
+                <span class="metric-value">{{ val }} units</span>
+            </div>
+            {% endfor %}
+        </section>
+    </div>
+</div>
+
+<script>
+    const PURPLE = '#7C6FED', PURPLE_SOFT = 'rgba(124,111,237,0.1)', GREEN = '#22C55E', ORANGE = '#F97316';
+
+    // Balance Overview - Area Chart
+    const bCtx = document.getElementById('balanceChart').getContext('2d');
+    const trendLabels = {{ trend_labels | safe }};
+    const trendValues = {{ trend_values | safe }};
+    
+    new Chart(bCtx, {
+        type: 'line',
+        data: {
+            labels: trendLabels,
+            datasets: [
+                { 
+                    label: 'Revenue Trend', 
+                    data: trendValues,
+                    borderColor: PURPLE, 
+                    backgroundColor: 'rgba(124,111,237,0.1)',
+                    fill: true, 
+                    tension: 0.4, 
+                    borderWidth: 2, 
+                    pointRadius: 3,
+                    pointBackgroundColor: PURPLE
+                }
+            ]
+        },
+        options: {
+            responsive: true, 
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+            scales: {
+                y: { beginAtZero: true, grid: { color: '#F9F9FF' }, ticks: { font: { size: 10 }, callback: v => '₹' + v.toLocaleString('en-IN') } },
+                x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+            }
+        }
+    });
+
+    // Income vs Expense Bar
+    const ieCtx = document.getElementById('ieBarChart').getContext('2d');
+    new Chart(ieCtx, {
+        type: 'bar',
+        data: {
+            labels: trendLabels,
+            datasets: [
+                { 
+                    label: 'Expense', 
+                    data: trendValues.map(v => v * 0.4), // Placeholder logic if we don't have separate expense trend yet
+                    backgroundColor: '#EEEDff', 
+                    borderRadius: 6 
+                },
+                { 
+                    label: 'Income', 
+                    data: trendValues, 
+                    backgroundColor: PURPLE, 
+                    borderRadius: 6 
+                }
+            ]
+        },
+        options: {
+            responsive: true, 
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+            scales: {
+                y: { beginAtZero: true, grid: { color: '#F9F9FF' }, ticks: { font: { size: 10 }, callback: v => '₹' + v.toLocaleString('en-IN') } },
+                x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+            },
+            barPercentage: 0.6, 
+            categoryPercentage: 0.7
+        }
+    });
+
+    // Inventory Donut
+    const invCtx = document.getElementById('inventoryChart').getContext('2d');
+    const invLabels = {{ inv_labels | safe }};
+    const invValues = {{ inv_values | safe }};
+    const COLORS = [PURPLE, '#F97316', '#111827', '#6B7280', '#E2E8F0'];
+    new Chart(invCtx, {
+        type: 'doughnut',
+        data: {
+            labels: invLabels,
+            datasets: [{ data: invValues, backgroundColor: COLORS, borderWidth: 0, hoverOffset: 4 }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            cutout: '78%'
+        }
+    });
+
+    // Build legend
+    const legend = document.getElementById('donut-legend');
+    invLabels.slice(0, 4).forEach((l, i) => {
+        const total = invValues.reduce((a, b) => a + b, 0);
+        const pct = total > 0 ? Math.round(invValues[i] / total * 100) : 0;
+        legend.innerHTML += `<div style="display:flex;justify-content:space-between;align-items:center;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div style="width:10px;height:10px;border-radius:50%;background:${COLORS[i]};flex-shrink:0;"></div>
+      <span style="font-size:12px;color:#6B7280;">${l}</span>
+    </div>
+    <span style="font-size:12px;font-weight:700;color:#1E1B4B;">${pct}%</span>
+  </div>`;
+    });
+</script>
+{% endblock %}

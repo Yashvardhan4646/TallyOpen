@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TallyOpen</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg: #F4F3FF;
+            --surface: #ffffff;
+            --sidebar-bg: #ffffff;
+            --sidebar-w: 240px;
+            --accent: #7C6FED;
+            --accent-soft: #EEEDFf;
+            --accent-2: #A89AF8;
+            --gold: #D4AF37;
+            --green: #22C55E;
+            --red: #EF4444;
+            --orange: #F97316;
+            --text: #1E1B4B;
+            --text-2: #6B7280;
+            --text-3: #9CA3AF;
+            --border: #E8E7FF;
+            --border-2: #E5E7EB;
+            --radius: 14px;
+            --radius-sm: 8px;
+            --shadow: 0 2px 8px rgba(124, 111, 237, 0.08);
+            --shadow-md: 0 4px 20px rgba(124, 111, 237, 0.12);
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Sans', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            min-height: 100vh;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* ── SIDEBAR ── */
+        .sidebar {
+            width: var(--sidebar-w);
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border);
+            padding: 28px 16px;
+            display: flex;
+            flex-direction: column;
+            z-index: 200;
+        }
+
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 8px;
+            margin-bottom: 36px;
+        }
+
+        .logo-mark {
+            width: 36px;
+            height: 36px;
+            background: var(--accent);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text);
+            letter-spacing: -0.5px;
+        }
+
+        .logo-text span {
+            color: var(--accent);
+        }
+
+        .nav-group {
+            margin-bottom: 8px;
+        }
+
+        .nav-label {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-3);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 12px;
+            margin-bottom: 6px;
+            margin-top: 16px;
+        }
+
+        .sidebar nav a {
+            text-decoration: none;
+            color: var(--text-2);
+            padding: 10px 12px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 500;
+            font-size: 13.5px;
+            margin-bottom: 2px;
+            transition: var(--transition);
+        }
+
+        .sidebar nav a i {
+            font-size: 16px;
+            width: 18px;
+            text-align: center;
+        }
+
+        .sidebar nav a:hover {
+            background: var(--accent-soft);
+            color: var(--accent);
+        }
+
+        .sidebar nav a.active {
+            background: var(--accent);
+            color: white;
+            box-shadow: 0 4px 12px rgba(124, 111, 237, 0.3);
+        }
+
+        .sidebar-bottom {
+            margin-top: auto;
+            border-top: 1px solid var(--border);
+            padding-top: 16px;
+        }
+
+        .sidebar-bottom a {
+            text-decoration: none;
+            color: var(--text-2);
+            padding: 10px 12px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13.5px;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+
+        .sidebar-bottom a:hover {
+            background: #FEE2E2;
+            color: var(--red);
+        }
+
+        /* ── MAIN ── */
+        .main {
+            margin-left: var(--sidebar-w);
+            flex: 1;
+            padding: 32px 36px;
+            max-width: calc(100% - var(--sidebar-w));
+            min-height: 100vh;
+        }
+
+        /* ── TOPBAR ── */
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+            gap: 16px;
+        }
+
+        .topbar-left h1 {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text);
+            letter-spacing: -0.4px;
+        }
+
+        .topbar-left p {
+            font-size: 13px;
+            color: var(--text-2);
+            margin-top: 2px;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .search-box {
+            position: relative;
+        }
+
+        .search-box input {
+            padding: 9px 16px 9px 38px;
+            border-radius: 20px;
+            border: 1px solid var(--border-2);
+            background: white;
+            font-size: 13px;
+            width: 220px;
+            outline: none;
+            transition: var(--transition);
+            color: var(--text);
+        }
+
+        .search-box input:focus {
+            border-color: var(--accent);
+            width: 260px;
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 13px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-3);
+            font-size: 13px;
+        }
+
+        .topbar-icon-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            border: 1px solid var(--border-2);
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text-2);
+            font-size: 15px;
+            transition: var(--transition);
+            position: relative;
+        }
+
+        .topbar-icon-btn:hover {
+            background: var(--accent-soft);
+            color: var(--accent);
+        }
+
+        .notif-dot {
+            position: absolute;
+            top: 7px;
+            right: 7px;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #EF4444;
+            border: 1.5px solid white;
+        }
+
+        .avatar-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background: var(--accent);
+            color: white;
+            font-size: 14px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        /* ── DATE BADGE ── */
+        .date-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 7px 14px;
+            border-radius: 20px;
+            border: 1px solid var(--border-2);
+            background: white;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-2);
+            cursor: pointer;
+        }
+
+        /* ── STAT CARDS ── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 18px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 22px;
+            border: 1px solid var(--border);
+            transition: var(--transition);
+            position: relative;
+            /* overflow: hidden;  <-- Removed to prevent tooltip clipping */
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .stat-card .sc-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-2);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stat-card .sc-label select {
+            border: none;
+            background: none;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-3);
+            cursor: pointer;
+            padding: 0;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .stat-card .sc-value {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -1px;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+
+        .stat-card .sc-value .rupee {
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        .stat-card .sc-meta {
+            font-size: 12px;
+            color: var(--text-2);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .badge-up {
+            background: #DCFCE7;
+            color: #15803D;
+            padding: 2px 7px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .badge-down {
+            background: #FEE2E2;
+            color: #B91C1C;
+            padding: 2px 7px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .sc-icon {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        /* ── SECTIONS ── */
+        section {
+            background: white;
+            border-radius: var(--radius);
+            padding: 24px;
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .section-header h2 {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .section-header a {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        /* ── TABLES ── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 10px 14px;
+            font-size: 11px;
+            color: var(--text-3);
+            border-bottom: 2px solid var(--border);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 14px;
+            border-bottom: 1px solid #F9F9FF;
+            font-size: 13.5px;
+            font-weight: 500;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: #FAFAFF;
+        }
+
+        /* ── BUTTONS ── */
+        .btn {
+            padding: 9px 18px;
+            border-radius: var(--radius-sm);
+            border: none;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            transition: var(--transition);
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(124, 111, 237, 0.3);
+        }
+
+        .btn-outline {
+            background: white;
+            color: var(--text);
+            border: 1px solid var(--border-2);
+        }
+
+        .btn-outline:hover {
+            background: var(--accent-soft);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .btn-danger {
+            background: #FEE2E2;
+            color: #B91C1C;
+            border: none;
+        }
+
+        .btn-danger:hover {
+            background: #FECACA;
+        }
+
+        .btn-green {
+            background: #DCFCE7;
+            color: #15803D;
+            border: none;
+        }
+
+        .btn-green:hover {
+            background: #BBF7D0;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        /* ── FORMS ── */
+        input[type=text],
+        input[type=number],
+        input[type=email],
+        input[type=date],
+        select,
+        textarea {
+            width: 100%;
+            padding: 11px 14px;
+            border-radius: var(--radius-sm);
+            border: 1.5px solid var(--border-2);
+            background: white;
+            font-size: 13.5px;
+            margin-bottom: 14px;
+            outline: none;
+            transition: var(--transition);
+            font-family: 'DM Sans', sans-serif;
+            color: var(--text);
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(124, 111, 237, 0.1);
+        }
+
+        label.form-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-2);
+            display: block;
+            margin-bottom: 6px;
+            letter-spacing: 0.2px;
+        }
+
+        /* ── MODALS ── */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(30, 27, 75, 0.4);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            width: 100%;
+            max-width: 480px;
+            border-radius: 20px;
+            padding: 32px;
+            box-shadow: 0 24px 48px rgba(30, 27, 75, 0.15);
+            animation: slideUp 0.25s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(16px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-top h2 {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .close-modal {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: #F3F4F6;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: var(--text-2);
+            transition: var(--transition);
+        }
+
+        .close-modal:hover {
+            background: #E5E7EB;
+        }
+
+        /* ── DELETE MODAL ── */
+        #deleteModal .modal-content {
+            max-width: 360px;
+            text-align: center;
+            padding: 40px 32px;
+        }
+
+        #deleteModal p {
+            color: var(--text-2);
+            font-size: 14px;
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+
+        #deleteModal .btn-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        /* ── CHIPS / BADGES ── */
+        .chip {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            display: inline-block;
+        }
+
+        .chip-purple {
+            background: var(--accent-soft);
+            color: var(--accent);
+        }
+
+        .chip-green {
+            background: #DCFCE7;
+            color: #15803D;
+        }
+
+        .chip-red {
+            background: #FEE2E2;
+            color: #B91C1C;
+        }
+
+        .chip-orange {
+            background: #FEF3C7;
+            color: #B45309;
+        }
+
+        .chip-gray {
+            background: #F3F4F6;
+            color: #374151;
+        }
+
+        /* ── SCROLLBAR ── */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-2);
+            border-radius: 3px;
+        }
+
+        /* ── MINI SPARKLINES ── */
+        .sparkline-wrap {
+            height: 40px;
+            margin-top: 8px;
+        }
+
+        /* ── PROGRESS BARS ── */
+        .progress-bar {
+            height: 6px;
+            border-radius: 3px;
+            background: #F3F4F6;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            background: var(--accent);
+        }
+
+        /* ── GRID UTILS ── */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+        }
+
+        .grid-main {
+            display: grid;
+            grid-template-columns: 2.5fr 1fr;
+            gap: 20px;
+        }
+
+        .grid-half {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        /* ── TREND INDICATOR ── */
+        .trend {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .trend.up {
+            color: #15803D;
+        }
+
+        .trend.down {
+            color: #B91C1C;
+        }
+
+        /* ── EMPTY STATE ── */
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            color: var(--text-3);
+        }
+
+        .empty-state i {
+            font-size: 36px;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        /* ── TOOLTIP ── */
+        [data-tooltip] {
+            position: relative;
+        }
+
+        [data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100%+6px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1E1B4B;
+            color: white;
+            font-size: 11px;
+            padding: 5px 10px;
+            border-radius: 6px;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        /* ── ACTIVITY TIMELINE ── */
+        .timeline-item {
+            display: flex;
+            gap: 14px;
+            padding: 12px 0;
+            border-bottom: 1px solid #F9F9FF;
+        }
+
+        .timeline-dot {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            flex-shrink: 0;
+        }
+
+        /* ── QUICK ACTIONS ── */
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .quick-action {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: 10px;
+            background: white;
+            border: 1px solid var(--border);
+            text-decoration: none;
+            color: var(--text);
+            font-size: 13px;
+            font-weight: 600;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .quick-action:hover {
+            background: var(--accent-soft);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .quick-action i {
+            font-size: 14px;
+        }
+
+        /* ── CARD METRIC ── */
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #F9F9FF;
+        }
+
+        .metric-row:last-child {
+            border: none;
+        }
+
+        .metric-label {
+            font-size: 13px;
+            color: var(--text-2);
+        }
+
+        .metric-value {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text);
+        }
+        /* ── TOOLTIP QUESTION MARK ── */
+        .tip-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 15px; height: 15px;
+            border-radius: 50%;
+            background: rgba(124,111,237,0.15);
+            color: var(--accent);
+            font-size: 9px;
+            font-weight: 700;
+            cursor: help;
+            position: relative;
+            flex-shrink: 0;
+            margin-left: 4px;
+            vertical-align: middle;
+            transition: background 0.15s;
+        }
+        .tip-icon:hover { background: var(--accent); color: #fff; }
+        .tip-icon::after {
+            content: attr(data-tip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1E1B4B;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 400;
+            padding: 8px 12px;
+            border-radius: 8px;
+            width: max-content;
+            max-width: 220px;
+            white-space: normal;
+            text-align: left;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.15s;
+            line-height: 1.5;
+        }
+        .tip-icon:hover::after { opacity: 1; }
+
+        /* ── GLOBAL TOOLTIP TOGGLE ── */
+        {% if g_settings.show_tooltips == 0 %}
+        .tip-icon { display: none !important; }
+        {% endif %}
+
+        /* ── TOGGLE SWITCH ── */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #E2E8F0;
+            transition: .3s;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px; width: 18px;
+            left: 3px; bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--accent); }
+        input:checked + .slider:before { transform: translateX(20px); }
+    </style>
+</head>
+
+<body>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-mark">{{ g_settings.business_name[0]|upper if g_settings.business_name else 'T' }}</div>
+            <div class="logo-text" style="font-size:14px;line-height:1.2;">{{ g_settings.business_name or 'TallyOpen' }}</div>
+        </div>
+
+        <div class="nav-label">Main</div>
+        <nav>
+            <a href="/" id="nav-dashboard">
+                <i class="fas fa-home"></i> Home / Dashboard
+                <span class="tip-icon" data-tip="See a quick summary of your business — money in, money out, stock levels.">?</span>
+            </a>
+            <a href="/companies" id="nav-companies">
+                <i class="fas fa-building"></i> Companies
+                <span class="tip-icon" data-tip="Manage the companies or branches you do business with.">?</span>
+            </a>
+            <a href="/ledgers" id="nav-ledgers">
+                <i class="fas fa-users"></i> Accounts &amp; People
+                <span class="tip-icon" data-tip="Keep track of people and accounts — who owes you money and who you owe money to.">?</span>
+            </a>
+            <a href="/inventory" id="nav-inventory">
+                <i class="fas fa-boxes"></i> Stock / Inventory
+                <span class="tip-icon" data-tip="See what goods/products you have, how many are left, and their prices.">?</span>
+            </a>
+        </nav>
+
+        <div class="nav-label">Finance</div>
+        <nav>
+            <a href="/vouchers" id="nav-vouchers">
+                <i class="fas fa-receipt"></i> Money Entries
+                <span class="tip-icon" data-tip="Record every payment, receipt, sale, or purchase. Like writing in a register.">?</span>
+            </a>
+            <a href="/billing" id="nav-billing">
+                <i class="fas fa-file-invoice"></i> Make a Bill
+                <span class="tip-icon" data-tip="Create a tax invoice/bill for your customers and send it by email.">?</span>
+            </a>
+            <a href="/reports" id="nav-reports">
+                <i class="fas fa-chart-bar"></i> Reports
+                <span class="tip-icon" data-tip="See your profit, losses, and full financial health at a glance.">?</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <a href="/settings" id="nav-settings"><i class="fas fa-cog"></i> Settings</a>
+            <a href="/logout" style="color: #EF4444;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="main">
+        <!-- TOPBAR -->
+        <div class="topbar">
+            <div class="topbar-left">
+                <h1 id="page-title">Dashboard</h1>
+                <p id="page-subtitle">Your financial overview at a glance</p>
+            </div>
+            <div class="topbar-right">
+                <div class="date-badge">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span id="current-date"></span>
+                </div>
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Search...">
+                </div>
+                <div class="topbar-icon-btn" data-tooltip="Notifications">
+                    <i class="fas fa-bell"></i>
+                    <span class="notif-dot"></span>
+                </div>
+                <div class="avatar-btn">{{ session['username'][0]|upper if session['username'] else 'A' }}</div>
+            </div>
+        </div>
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- GLOBAL DELETE MODAL -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <div
+                style="width:56px;height:56px;background:#FEE2E2;border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:24px;color:#EF4444;">
+                <i class="fas fa-trash"></i>
+            </div>
+            <h2 style="font-size:18px;font-weight:700;margin-bottom:8px;">Confirm Delete</h2>
+            <p>This action cannot be undone. All associated data will be permanently removed.</p>
+            <div class="btn-row">
+                <button class="btn btn-outline"
+                    onclick="document.getElementById('deleteModal').classList.remove('active')">Cancel</button>
+                <form id="deleteForm" method="POST" style="display:inline;">
+                    <button type="submit" class="btn" style="background:#EF4444;color:white;">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Date
+        const d = new Date();
+        document.getElementById('current-date').textContent = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
+        // Active nav
+        const path = window.location.pathname;
+        const map = {
+            '/': 'nav-dashboard', '/companies': 'nav-companies', '/ledgers': 'nav-ledgers',
+            '/inventory': 'nav-inventory', '/vouchers': 'nav-vouchers', '/billing': 'nav-billing', '/reports': 'nav-reports',
+            '/settings': 'nav-settings'
+        };
+        const key = Object.keys(map).find(k => path === k || path.startsWith(k) && k !== '/');
+        if (key && map[key]) document.getElementById(map[key])?.classList.add('active');
+
+        // Delete modal
+        function openDeleteModal(action) {
+            document.getElementById('deleteForm').action = action;
+            document.getElementById('deleteModal').classList.add('active');
+        }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

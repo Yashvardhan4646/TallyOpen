@@ -1,0 +1,177 @@
+{% extends "layout.html" %}
+{% block title %}Companies | TallyOpen{% endblock %}
+{% block content %}
+
+<!-- SUMMARY CARDS -->
+<div class="stats-row" style="grid-template-columns:repeat(3,1fr);margin-bottom:24px;">
+    <div class="stat-card">
+        <div class="sc-icon" style="background:#EEF2FF;color:var(--accent);"><i class="fas fa-building"></i></div>
+        <div class="sc-label">Total Businesses <span class="tip-icon" data-tip="The total number of companies or branches you have added to this app.">?</span></div>
+        <div class="sc-value">{{ companies|length }}</div>
+        <div class="sc-meta">Added companies</div>
+    </div>
+    <div class="stat-card">
+        <div class="sc-icon" style="background:#DCFCE7;color:#15803D;"><i class="fas fa-check-circle"></i></div>
+        <div class="sc-label">GST Registered <span class="tip-icon" data-tip="Number of your companies that have a GST number saved.">?</span></div>
+        <div class="sc-value">{{ gst_count }}</div>
+        <div class="sc-meta">With GST Tax Number</div>
+    </div>
+    <div class="stat-card">
+        <div class="sc-icon" style="background:#FEF3C7;color:#D97706;"><i class="fas fa-map-marker-alt"></i></div>
+        <div class="sc-label">Active Locations <span class="tip-icon" data-tip="Number of different cities where your companies are located.">?</span></div>
+        <div class="sc-value">{{ state_count }}</div>
+        <div class="sc-meta">Unique cities</div>
+    </div>
+</div>
+
+<!-- COMPANIES TABLE -->
+<section>
+    <div class="section-header">
+        <h2>My Businesses / Companies <span class="tip-icon" data-tip="A list of all the companies you have registered. Each bill you make will be linked to one of these.">?</span></h2>
+        <button class="btn btn-primary" onclick="openAddModal()">
+            <i class="fas fa-plus"></i> Add New Company
+        </button>
+    </div>
+
+    {% if companies %}
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Company Name <span class="tip-icon" data-tip="The official name of the company.">?</span></th>
+                <th>Location <span class="tip-icon" data-tip="Where this company is located.">?</span></th>
+                <th>GST Number <span class="tip-icon" data-tip="The GST Tax Number for this company.">?</span></th>
+                <th>Status <span class="tip-icon" data-tip="Whether this company is active and ready to use.">?</span></th>
+                <th style="text-align:right;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in companies %}
+            <tr>
+                <td style="color:var(--text-3);font-weight:600;">{{ loop.index }}</td>
+                <td>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div
+                            style="width:34px;height:34px;background:var(--accent-soft);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--accent);">
+                            {{ c[1][0].upper() }}
+                        </div>
+                        <strong>{{ c[1] }}</strong>
+                    </div>
+                </td>
+                <td style="color:var(--text-2);"><i class="fas fa-map-pin"
+                        style="margin-right:5px;color:var(--text-3);"></i>{{ c[2] }}</td>
+                <td><code
+                        style="font-family:'DM Mono',monospace;font-size:12px;color:var(--accent);background:var(--accent-soft);padding:3px 8px;border-radius:6px;">{{ c[3] }}</code>
+                </td>
+                <td><span class="chip chip-green"><i class="fas fa-circle"
+                            style="font-size:7px;margin-right:4px;"></i>Active</span></td>
+                <td style="text-align:right;">
+                    <button class="btn btn-outline btn-sm" data-id="{{ c[0] }}" data-name="{{ c[1] }}"
+                        data-addr="{{ c[4] | forceescape }}" data-gst="{{ c[3] }}" onclick="openEditModal(this)"><i
+                            class="fas fa-pen"></i> Edit</button>
+                    <button class="btn btn-danger btn-sm" onclick="openDeleteModal('/delete-company/{{ c[0] }}')"><i
+                            class="fas fa-trash"></i></button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-building"></i>
+        <p style="font-size:15px;font-weight:600;color:var(--text-2);margin-bottom:6px;">No companies added yet</p>
+        <p style="font-size:13px;">Add your first company to start making bills.</p>
+    </div>
+    {% endif %}
+</section>
+
+<!-- ADD MODAL -->
+<div id="addModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-top">
+            <h2>Add New Company</h2>
+            <button class="close-modal" onclick="document.getElementById('addModal').classList.remove('active')"><i
+                    class="fas fa-times"></i></button>
+        </div>
+        <form action="/add-company" method="POST">
+            <label class="form-label">Company Name <span class="tip-icon" data-tip="The official registered name of your business.">?</span></label>
+            <input type="text" name="name" placeholder="e.g. Sharma Enterprises" required>
+            <label class="form-label">Full Address <span class="tip-icon" data-tip="Enter the street, colony, and building details.">?</span></label>
+            <input type="text" name="address_line1" placeholder="Street / Colony" required style="margin-bottom:10px;">
+            <input type="text" name="address_line2" placeholder="Landmark, Area (Optional)">
+            <div class="grid-2">
+                <div>
+                    <label class="form-label">State <span class="tip-icon" data-tip="Select the state where this company is located.">?</span></label>
+                    <select name="state" id="addState" onchange="loadCities('addState','addCity')" required>
+                        <option value="">Select State</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">City <span class="tip-icon" data-tip="Select the city where this company is located.">?</span></label>
+                    <select name="city" id="addCity" required>
+                        <option value="">Select City</option>
+                    </select>
+                </div>
+            </div>
+            <label class="form-label">GST Tax Number <span class="tip-icon" data-tip="Your 15-digit GST registration number.">?</span></label>
+            <input type="text" name="gst" placeholder="e.g. 06ABCDE1234F1Z5"
+                pattern="^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$"
+                oninput="this.value=this.value.toUpperCase()" required>
+            <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;">Add Company</button>
+        </form>
+    </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-top">
+            <h2>Change Company Details</h2>
+            <button class="close-modal" onclick="document.getElementById('editModal').classList.remove('active')"><i
+                    class="fas fa-times"></i></button>
+        </div>
+        <form id="editForm" method="POST">
+            <label class="form-label">Company Name <span class="tip-icon" data-tip="The official name of the company.">?</span></label>
+            <input type="text" id="editName" name="name" required>
+            <label class="form-label">Full Address <span class="tip-icon" data-tip="The business address of this company.">?</span></label>
+            <input type="text" id="editAddr" name="address_line1" required>
+            <label class="form-label">GST Tax Number <span class="tip-icon" data-tip="Your 15-digit GST registration number.">?</span></label>
+            <input type="text" id="editGst" name="gst" required>
+            <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;">Save Changes</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    async function loadStates() {
+        try {
+            const res = await fetch('https://countriesnow.space/api/v0.1/countries/states', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ country: 'India' }) });
+            const data = await res.json();
+            const sel = document.getElementById('addState');
+            data.data.states.forEach(s => { const o = document.createElement('option'); o.value = s.name; o.textContent = s.name; sel.appendChild(o); });
+        } catch (e) { }
+    }
+    async function loadCities(sId, cId) {
+        const state = document.getElementById(sId).value;
+        const cSel = document.getElementById(cId);
+        cSel.innerHTML = '<option>Loading...</option>';
+        try {
+            const res = await fetch('https://countriesnow.space/api/v0.1/countries/state/cities', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ country: 'India', state }) });
+            const data = await res.json();
+            cSel.innerHTML = '<option value="">Select City</option>';
+            data.data.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; cSel.appendChild(o); });
+        } catch (e) { cSel.innerHTML = '<option>Error loading</option>'; }
+    }
+    function openAddModal() {
+        document.getElementById('addModal').classList.add('active');
+        if (document.getElementById('addState').options.length === 1) loadStates();
+    }
+    function openEditModal(btn) {
+        document.getElementById('editName').value = btn.dataset.name;
+        document.getElementById('editAddr').value = btn.dataset.addr;
+        document.getElementById('editGst').value = btn.dataset.gst;
+        document.getElementById('editForm').action = '/edit-company/' + btn.dataset.id;
+        document.getElementById('editModal').classList.add('active');
+    }
+</script>
+{% endblock %}

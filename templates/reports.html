@@ -1,0 +1,341 @@
+{% extends "layout.html" %}
+{% block title %}Reports | TallyOpen{% endblock %}
+{% block content %}
+
+<!-- HEADER: Export Controls -->
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+    <div>
+        <p style="color:var(--text-2);font-size:13px;margin-top:4px;">Tools to save and share your business health reports.</p>
+    </div>
+    <div style="display:flex;gap:10px;">
+        <a href="/export-excel" class="btn btn-outline"><i class="fas fa-file-excel" style="color:#15803D;"></i> Save as Excel</a>
+        <button class="btn btn-outline" onclick="exportToPNG()"><i class="fas fa-image"></i> Save as Photo</button>
+        <button class="btn btn-primary" onclick="openEmailSnapshotModal()"><i class="fas fa-envelope"></i> Send by Email</button>
+    </div>
+</div>
+
+<div id="report-capture-area">
+
+    <!-- PROFIT / INCOME / EXPENSE CARDS -->
+    <div class="stats-row" style="grid-template-columns:repeat(3,1fr);margin-bottom:24px;">
+        <div class="stat-card" style="border-left:4px solid #22C55E;">
+            <div class="sc-icon" style="background:#DCFCE7;color:#15803D;"><i class="fas fa-arrow-trend-up"></i></div>
+            <div class="sc-label">Total Money In <span class="tip-icon" data-tip="All the money you have received from sales and other sources.">?</span></div>
+            <div class="sc-value" style="color:#15803D;">₹{{ "{:,.2f}".format(income or 0) }}</div>
+            <div class="sc-meta">Total sales & receipts</div>
+        </div>
+        <div class="stat-card" style="border-left:4px solid #EF4444;">
+            <div class="sc-icon" style="background:#FEE2E2;color:#B91C1C;"><i class="fas fa-arrow-trend-down"></i></div>
+            <div class="sc-label">Total Money Out <span class="tip-icon" data-tip="All the money you have spent on stock, rent, bills, etc.">?</span></div>
+            <div class="sc-value" style="color:#B91C1C;">₹{{ "{:,.2f}".format(expense or 0) }}</div>
+            <div class="sc-meta">Total payments & costs</div>
+        </div>
+        <div class="stat-card"
+            style="border-left:4px solid var(--accent);background:{% if (profit or 0) >= 0 %}white{% else %}#FFF5F5{% endif %};">
+            <div class="sc-icon" style="background:var(--accent-soft);color:var(--accent);"><i
+                    class="fas fa-chart-line"></i></div>
+            <div class="sc-label">Net Profit <span class="tip-icon" data-tip="The money left with you after paying all your expenses.">?</span></div>
+            <div class="sc-value" style="color:{% if (profit or 0) >= 0 %}var(--accent){% else %}#B91C1C{% endif %};">
+                ₹{{ "{:,.2f}".format(profit or 0) }}
+            </div>
+            <div class="sc-meta">
+                {% if (profit or 0) >= 0 %}
+                <span class="badge-up">Your Gain</span>
+                {% else %}
+                <span class="badge-down">Your Loss</span>
+                {% endif %}
+                This period
+            </div>
+        </div>
+    </div>
+
+    <!-- ADDITIONAL KPI ROW -->
+    <div class="stats-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
+        <div class="stat-card">
+            <div class="sc-label">Profit Percentage <span class="tip-icon" data-tip="How much profit you make for every ₹100 of sales. Higher is better.">?</span></div>
+            <div class="sc-value" style="font-size:22px;">
+                {{ "{:.1f}".format(profit_margin) }}%
+            </div>
+            <div class="progress-bar" style="margin-top:8px;">
+                <div class="progress-fill"
+                    style="width:{{ [profit_margin, 0]|max|round(0)|int }}%;background:#22C55E;">
+                </div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="sc-label">Spending Ratio <span class="tip-icon" data-tip="How much of your income is going away in expenses. Lower is better.">?</span></div>
+            <div class="sc-value" style="font-size:22px;">
+                {{ "{:.1f}".format(expense_ratio) }}%
+            </div>
+            <div class="progress-bar" style="margin-top:8px;">
+                <div class="progress-fill"
+                    style="width:{{ [expense_ratio, 0]|max|round(0)|int }}%;background:#EF4444;">
+                </div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="sc-label">Total Earned <span class="tip-icon" data-tip="Total money received before any taxes or costs are removed.">?</span></div>
+            <div class="sc-value" style="font-size:22px;">₹{{ "{:,.0f}".format(income or 0) }}</div>
+            <div class="sc-meta">Gross Revenue</div>
+        </div>
+        <div class="stat-card">
+            <div class="sc-label">Making Money? <span class="tip-icon" data-tip="Shows if your business is currently in profit or loss.">?</span></div>
+            <div class="sc-value" style="font-size:20px;">
+                {% if (profit or 0) >= 0 %}
+                <span style="color:#15803D;font-size:16px;">✓ Yes (Profit)</span>
+                {% else %}
+                <span style="color:#B91C1C;font-size:16px;">✗ No (Loss)</span>
+                {% endif %}
+            </div>
+            <div class="sc-meta">Current status</div>
+        </div>
+    </div>
+
+    <!-- CHARTS ROW -->
+    <div class="grid-2" style="margin-bottom:20px;">
+        <section style="margin-bottom:0;">
+            <div class="section-header">
+                <h2>Money In vs Money Out <span class="tip-icon" data-tip="A visual comparison of your earnings and your spendings.">?</span></h2>
+            </div>
+            <div style="height:260px;"><canvas id="ieChart"></canvas></div>
+        </section>
+        <section style="margin-bottom:0;">
+            <div class="section-header">
+                <h2>Category Breakdown <span class="tip-icon" data-tip="Which parts of your business hold the most value.">?</span></h2>
+            </div>
+            <div style="height:260px;"><canvas id="groupChart"></canvas></div>
+        </section>
+    </div>
+
+    <!-- BALANCE SHEET + TRIAL BALANCE -->
+    <div class="grid-2" style="margin-bottom:20px;">
+        <section style="margin-bottom:0;">
+            <div class="section-header">
+                <h2>Everything You Own & Owe <span class="tip-icon" data-tip="A list of your Assets (things you own like Cash/Stock) and Liabilities (money you owe others).">?</span></h2>
+                <span class="chip chip-purple">Balance Sheet</span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th style="text-align:right;">Amount</th>
+                        <th style="text-align:right;">Share</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set bs_total = balance_sheet|map(attribute=1)|sum %}
+                    {% for g in balance_sheet %}
+                    <tr>
+                        <td><strong>{{ g[0] }}</strong></td>
+                        <td style="text-align:right;font-weight:700;font-family:'DM Mono',monospace;">₹{{
+                            "{:,.2f}".format(g[1] or 0) }}</td>
+                        <td style="text-align:right;">
+                            <span class="chip chip-gray" style="font-size:10px;">
+                                {{ "{:.1f}".format((g[1] or 0)/(bs_total or 1)*100) }}%
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    <tr style="border-top:2px solid var(--accent);">
+                        <td><strong>TOTAL VALUE</strong></td>
+                        <td style="text-align:right;font-weight:700;color:var(--accent);">₹{{ "{:,.2f}".format(bs_total
+                            or 0) }}</td>
+                        <td style="text-align:right;"><span class="chip chip-purple">100%</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section style="margin-bottom:0;">
+            <div class="section-header">
+                <h2>Final Check (Trial Balance) <span class="tip-icon" data-tip="A technical report to verify that all your accounts are balanced correctly.">?</span></h2>
+                <span class="chip chip-green">Correct</span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Account Name</th>
+                        <th style="text-align:right;">Current Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in trial_balance %}
+                    <tr>
+                        <td>{{ r[0] }}</td>
+                        <td style="text-align:right;font-weight:600;font-family:'DM Mono',monospace;
+            color:{% if (r[1] or 0) >= 0 %}#15803D{% else %}#B91C1C{% endif %};">
+                            ₹{{ "{:,.2f}".format(r[1] or 0) }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    <tr style="border-top:2px solid var(--accent);">
+                        <td><strong>TOTAL</strong></td>
+                        <td style="text-align:right;font-weight:700;color:var(--accent);">₹{{ "{:,.2f}".format(total_tb
+                            or 0) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </div>
+
+    <!-- TREND ANALYSIS -->
+    <section>
+        <div class="section-header">
+            <h2>Money Trend Over Time <span class="tip-icon" data-tip="Shows how your Income and Expenses have changed over the last few months.">?</span></h2>
+            <span style="font-size:12px;color:var(--text-3);">6-month view</span>
+        </div>
+        <div style="height:200px;"><canvas id="trendChart"></canvas></div>
+    </section>
+
+</div><!-- /report-capture-area -->
+
+<!-- EMAIL MODAL -->
+<div id="emailReportModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-top">
+            <h2>Email Report Snapshot</h2>
+            <button class="close-modal"
+                onclick="document.getElementById('emailReportModal').classList.remove('active')"><i
+                    class="fas fa-times"></i></button>
+        </div>
+        <div style="background:var(--accent-soft);border-radius:10px;padding:14px;margin-bottom:18px;">
+            <p style="font-size:13px;color:var(--accent);font-weight:600;"><i class="fas fa-image"
+                    style="margin-right:6px;"></i>High-resolution snapshot will be captured and sent</p>
+        </div>
+        <label class="form-label">Recipient Email Address</label>
+        <input type="email" id="reportRecipient" placeholder="boss@company.com" required>
+        <p style="font-size:12px;color:var(--text-3);margin-top:-8px;margin-bottom:16px;">The full report will be
+            rendered as a PNG and attached to the email.</p>
+        <button type="button" id="emailSendBtn" class="btn btn-primary" onclick="sendReportEmail()"
+            style="width:100%;justify-content:center;height:46px;">
+            <i class="fas fa-paper-plane"></i> Capture & Send Report
+        </button>
+        <div id="emailLoading"
+            style="display:none;text-align:center;margin-top:16px;color:var(--accent);font-weight:600;">
+            <i class="fas fa-spinner fa-spin"></i> Generating snapshot...
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+    function exportToPNG() {
+        html2canvas(document.getElementById('report-capture-area'), { scale: 2 }).then(canvas => {
+            const link = document.createElement('a'); link.download = 'TallyOpen_Report.png'; link.href = canvas.toDataURL(); link.click();
+        });
+    }
+    function openEmailSnapshotModal() { document.getElementById('emailReportModal').classList.add('active'); }
+
+    async function sendReportEmail() {
+        const recipient = document.getElementById('reportRecipient').value;
+        if (!recipient) return;
+        const btn = document.getElementById('emailSendBtn');
+        const loading = document.getElementById('emailLoading');
+        btn.disabled = true; loading.style.display = 'block';
+        try {
+            const canvas = await html2canvas(document.getElementById('report-capture-area'), { scale: 1.5 });
+            const b64 = canvas.toDataURL('image/png').split(',')[1];
+            const fd = new FormData();
+            fd.append('email', recipient);
+            const bytes = atob(b64), arr = new Uint8Array(bytes.length);
+            for (let i = 0; i < bytes.length; i++)arr[i] = bytes.charCodeAt(i);
+            fd.append('image', new Blob([arr], { type: 'image/png' }), 'report.png');
+            const res = await fetch('/email-report-png', { method: 'POST', body: fd });
+            const data = await res.json();
+            alert(data.success ? "Report Sent Successfully!" : data.error);
+            document.getElementById('emailReportModal').classList.remove('active');
+        } catch (e) { alert("Failed to send report"); }
+        finally { btn.disabled = false; loading.style.display = 'none'; }
+    }
+
+    // Income vs Expense Bar
+    new Chart(document.getElementById('ieChart'), {
+        type: 'bar',
+        data: {
+            labels: ['Income', 'Expense', 'Net Profit'],
+            datasets: [{
+                data: [{{ income or 0 }}, {{ expense or 0 }},{{ profit or 0 }}],
+        backgroundColor: ['#22C55E', '#EF4444', '#7C6FED'],
+        borderRadius: 8, borderSkipped: false
+    }]
+  },
+        options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: ctx => '₹' + ctx.raw.toLocaleString('en-IN') } }
+        },
+        scales: {
+            y: {
+                beginAtZero: true, grid: { color: '#F9F9FF' },
+                ticks: { font: { size: 10 }, callback: v => '₹' + v.toLocaleString('en-IN') }
+            },
+            x: { grid: { display: false }, ticks: { font: { size: 11 } } }
+        }
+    }
+});
+
+    // Group pie
+    new Chart(document.getElementById('groupChart'), {
+        type: 'pie',
+        data: {
+            labels: {{ bs_labels | safe }},
+        datasets: [{ data: {{ bs_values | safe }},
+        backgroundColor: ['#7C6FED', '#F97316', '#22C55E', '#EF4444', '#8B5CF6', '#06B6D4'],
+        borderWidth: 0}]
+  },
+        options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 16, font: { size: 11 } } } }
+    }
+});
+
+    // Trend chart
+    const incLabels = {{ inc_labels | safe }};
+    const incValues = {{ inc_values | safe }};
+    const expValues = {{ exp_values | safe }};
+
+    new Chart(document.getElementById('trendChart'), {
+        type: 'line',
+        data: {
+            labels: incLabels,
+            datasets: [
+                { 
+                    label: 'Income', 
+                    data: incValues,
+                    borderColor: '#22C55E', 
+                    backgroundColor: 'rgba(34,197,94,0.1)', 
+                    fill: true, 
+                    tension: 0.4, 
+                    borderWidth: 2, 
+                    pointRadius: 3
+                },
+                { 
+                    label: 'Expense', 
+                    data: expValues,
+                    borderColor: '#EF4444', 
+                    backgroundColor: 'rgba(239,68,68,0.05)', 
+                    fill: true, 
+                    tension: 0.4, 
+                    borderWidth: 2, 
+                    pointRadius: 3, 
+                    borderDash: [4, 4]
+                }
+            ]
+        },
+        options: {
+            responsive: true, 
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'top', labels: { boxWidth: 12, padding: 16, font: { size: 11 } } } },
+            scales: {
+                y: {
+                    beginAtZero: true, 
+                    grid: { color: '#F9F9FF' },
+                    ticks: { font: { size: 10 }, callback: v => '₹' + v.toLocaleString('en-IN') }
+                },
+                x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+            }
+        }
+    });
+</script>
+{% endblock %}

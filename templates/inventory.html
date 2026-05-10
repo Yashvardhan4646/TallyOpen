@@ -1,0 +1,207 @@
+{% extends "layout.html" %}
+{% block title %}Inventory | TallyOpen{% endblock %}
+{% block content %}
+
+<!-- STATS -->
+<div class="stats-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
+    <div class="stat-card">
+        <div class="sc-icon" style="background:#EEF2FF;color:var(--accent);"><i class="fas fa-cubes"></i></div>
+        <div class="sc-label">Total Items <span class="tip-icon" data-tip="Total number of different types of products you have in stock.">?</span></div>
+        <div class="sc-value">{{ inventory|length }}</div>
+        <div class="sc-meta">Products tracked</div>
+    </div>
+    <div class="stat-card">
+        <div class="sc-icon" style="background:#DCFCE7;color:#15803D;"><i class="fas fa-rupee-sign"></i></div>
+        <div class="sc-label">Total Stock Value <span class="tip-icon" data-tip="The total money value of all your products combined.">?</span></div>
+        <div class="sc-value" style="font-size:20px;">₹{{ "{:,.0f}".format(total_stock_value) }}</div>
+        <div class="sc-meta">Based on your prices</div>
+    </div>
+    <div class="stat-card">
+        <div class="sc-icon" style="background:#FEF3C7;color:#D97706;"><i class="fas fa-exclamation-triangle"></i></div>
+        <div class="sc-label">Low Stock <span class="tip-icon" data-tip="Items where you have less than 5 pieces left. You may need to buy more.">?</span></div>
+        <div class="sc-value">{{ low_stock_count }}</div>
+        <div class="sc-meta">Needs restocking</div>
+    </div>
+    <div class="stat-card">
+        <div class="sc-icon" style="background:#EFF6FF;color:#2563EB;"><i class="fas fa-tags"></i></div>
+        <div class="sc-label">Avg Price <span class="tip-icon" data-tip="The average price of one item in your inventory.">?</span></div>
+        <div class="sc-value" style="font-size:20px;">
+            ₹{{ "{:,.0f}".format(avg_rate) }}
+        </div>
+        <div class="sc-meta">Average per piece</div>
+    </div>
+</div>
+
+<!-- CHARTS ROW -->
+<div class="grid-2" style="margin-bottom:20px;">
+    <section style="margin-bottom:0;">
+        <div class="section-header">
+            <h2>Stock Value Breakdown <span class="tip-icon" data-tip="Which products are worth the most in your shop.">?</span></h2>
+        </div>
+        <div style="height:160px;"><canvas id="stockChart"></canvas></div>
+    </section>
+    <section style="margin-bottom:0;">
+        <div class="section-header">
+            <h2>Top Items by Value <span class="tip-icon" data-tip="The 5 items that make up the biggest part of your stock money.">?</span></h2>
+        </div>
+        {% for item in inventory[:5] %}
+        <div class="metric-row">
+            <div style="display:flex;align-items:center;gap:8px;">
+                <div style="width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;"></div>
+                <span class="metric-label">{{ item[1][:20] }}</span>
+            </div>
+            <span class="metric-value">₹{{ "{:,.0f}".format(item[2]*item[3]) }}</span>
+        </div>
+        {% endfor %}
+    </section>
+</div>
+
+<!-- INVENTORY TABLE -->
+<section>
+    <div class="section-header">
+        <h2>List of All Stock <span class="tip-icon" data-tip="Every item you have recorded in your shop.">?</span></h2>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <input type="text" placeholder="Search..." id="invSearch" onkeyup="filterInv()"
+                style="width:180px;margin:0;padding:8px 12px;font-size:13px;">
+            <button class="btn btn-primary" onclick="document.getElementById('addModal').classList.add('active')">
+                <i class="fas fa-plus"></i> Add New Item
+            </button>
+        </div>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Item Name <span class="tip-icon" data-tip="The name of the product.">?</span></th>
+                <th>How Many? (Qty) <span class="tip-icon" data-tip="How many pieces or units you have left.">?</span></th>
+                <th>Price per Unit <span class="tip-icon" data-tip="The price of one single piece.">?</span></th>
+                <th>Total Value <span class="tip-icon" data-tip="How much all these pieces are worth in total.">?</span></th>
+                <th>Status <span class="tip-icon" data-tip="Shows if you have enough stock or if it's running low.">?</span></th>
+                <th style="text-align:right;">Actions</th>
+            </tr>
+        </thead>
+        <tbody id="invTbody">
+            {% for item in inventory %}
+            {% set val = item[2]*item[3] %}
+            <tr>
+                <td style="color:var(--text-3);font-weight:600;">{{ loop.index }}</td>
+                <td>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div
+                            style="width:34px;height:34px;background:var(--accent-soft);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--accent);">
+                            <i class="fas fa-box"></i>
+                        </div>
+                        <strong>{{ item[1] }}</strong>
+                    </div>
+                </td>
+                <td>
+                    <span
+                        class="{% if item[2] < 5 %}badge-down{% elif item[2] < 20 %}badge-up{% else %}badge-up{% endif %}"
+                        style="font-family:'DM Mono',monospace;">{{ item[2] }} {{ item[4] }}</span>
+                </td>
+                <td style="font-family:'DM Mono',monospace;font-weight:600;">₹{{ "{:,.2f}".format(item[3]) }}</td>
+                <td style="font-weight:700;color:var(--accent);">₹{{ "{:,.2f}".format(val) }}</td>
+                <td>
+                    {% if item[2] < 5 %} <span class="chip chip-red"><i class="fas fa-circle"
+                            style="font-size:7px;margin-right:4px;"></i>Low Stock</span>
+                        {% elif item[2] < 20 %} <span class="chip chip-orange">Medium</span>
+                            {% else %}
+                            <span class="chip chip-green">In Stock</span>
+                            {% endif %}
+                </td>
+                <td style="text-align:right;">
+                    <button class="btn btn-outline btn-sm" data-id="{{ item[0] }}" data-name="{{ item[1] }}"
+                        data-qty="{{ item[2] }}" data-unit="{{ item[4] }}" data-rate="{{ item[3] }}"
+                        onclick="openEditModal(this)"><i class="fas fa-pen"></i></button>
+                    <button class="btn btn-danger btn-sm" onclick="openDeleteModal('/delete-inventory/{{ item[0] }}')"><i
+                            class="fas fa-trash"></i></button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<!-- ADD MODAL -->
+<div id="addModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-top">
+            <h2>Add Item to Stock</h2>
+            <button class="close-modal" onclick="document.getElementById('addModal').classList.remove('active')"><i
+                    class="fas fa-times"></i></button>
+        </div>
+        <form action="/add-inventory" method="POST">
+            <label class="form-label">Item Name <span class="tip-icon" data-tip="The name of the product or good.">?</span></label>
+            <input type="text" name="name" placeholder="e.g. Laptop / Rice / Mobile" required>
+            <div class="grid-2">
+                <div>
+                    <label class="form-label">How Many? (Qty) <span class="tip-icon" data-tip="How many pieces are you adding?">?</span></label>
+                    <input type="number" step="0.01" name="quantity" placeholder="0" required>
+                </div>
+                <div>
+                    <label class="form-label">Unit <span class="tip-icon" data-tip="How you count this item (e.g. Pcs, Kg, Ltr, Box).">?</span></label>
+                    <input type="text" name="unit" placeholder="Pcs / Kg / Ltr" required>
+                </div>
+            </div>
+            <label class="form-label">Price per Unit (₹) <span class="tip-icon" data-tip="The price of one piece/kg of this item.">?</span></label>
+            <input type="number" step="0.01" name="rate" placeholder="0.00" required>
+            <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;">Save to Stock</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openEditModal(btn) {
+        const m = document.getElementById('addModal');
+        m.classList.add('active');
+        m.querySelector('h2').innerText = 'Edit Inventory Item';
+        const f = m.querySelector('form');
+        f.action = '/edit-inventory/' + btn.dataset.id;
+        f.name.value = btn.dataset.name;
+        f.quantity.value = btn.dataset.qty;
+        f.unit.value = btn.dataset.unit;
+        f.rate.value = btn.dataset.rate;
+    }
+
+    function filterInv() {
+        const q = document.getElementById('invSearch').value.toLowerCase();
+        document.querySelectorAll('#invTbody tr').forEach(r => {
+            r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+        });
+    }
+
+    // Stock chart
+    const invLabels = {{ inv_labels | safe }};
+    const invValues = {{ inv_values | safe }};
+
+    new Chart(document.getElementById('stockChart'), {
+        type: 'bar',
+        data: {
+            labels: invLabels,
+            datasets: [{ 
+                data: invValues, 
+                backgroundColor: '#7C6FED', 
+                borderRadius: 6, 
+                hoverBackgroundColor: '#6358D4' 
+            }]
+        },
+        options: {
+            responsive: true, 
+            maintainAspectRatio: false, 
+            indexAxis: 'y',
+            plugins: { 
+                legend: { display: false }, 
+                tooltip: { callbacks: { label: ctx => '₹' + ctx.raw.toLocaleString('en-IN') } } 
+            },
+            scales: {
+                x: { 
+                    beginAtZero: true, 
+                    grid: { color: '#F9F9FF' }, 
+                    ticks: { font: { size: 10 }, callback: v => '₹' + v.toLocaleString('en-IN') } 
+                },
+                y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+            }
+        }
+    });
+</script>
+{% endblock %}

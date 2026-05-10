@@ -1,0 +1,9 @@
+{
+  "_comment": "Copy this file to keys.json and fill in your real values. keys.json is git-ignored and will NOT be committed.",
+  "db": {
+    "host": "localhost",
+    "user": "root",
+    "password": "YOUR_MYSQL_PASSWORD_HERE",
+    "database": "tallyopen"
+  }
+}

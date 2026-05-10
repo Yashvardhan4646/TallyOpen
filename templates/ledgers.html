@@ -1,0 +1,204 @@
+{% extends "layout.html" %}
+{% block title %}Accounts & People | TallyOpen{% endblock %}
+{% block content %}
+
+<!-- SUMMARY STAT CARDS -->
+<div class="stats-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
+    <div class="stat-card">
+        <div class="sc-icon" style="background:#EEF2FF;color:var(--accent);"><i class="fas fa-users"></i></div>
+        <div class="sc-label">Total Accounts <span class="tip-icon" data-tip="Total number of people and accounts you have added (customers, suppliers, banks, etc.).">?</span></div>
+        <div class="sc-value">{{ ledgers|length }}</div>
+        <div class="sc-meta">All groups</div>
+    </div>
+    <div class="stat-card">
+        <div class="sc-icon" style="background:#DCFCE7;color:#15803D;"><i class="fas fa-arrow-down"></i></div>
+        <div class="sc-label">Total Balance <span class="tip-icon" data-tip="The total money balance across all your accounts combined.">?</span></div>
+        <div class="sc-value" style="font-size:20px;">&#8377;{{ "{:,.0f}".format(total_ledger_balance) }}</div>
+        <div class="sc-meta">Net balance</div>
+    </div>
+    <div class="stat-card">
+        <div class="sc-icon" style="background:#FEF3C7;color:#D97706;"><i class="fas fa-users"></i></div>
+        <div class="sc-label">People Who Owe You <span class="tip-icon" data-tip="Customers or people who still owe you money (have not paid yet).">?</span></div>
+        <div class="sc-value">{{ debtors_count }}</div>
+        <div class="sc-meta">Sundry Debtors</div>
+    </div>
+    <div class="stat-card">
+        <div class="sc-icon" style="background:#FEE2E2;color:#B91C1C;"><i class="fas fa-user-minus"></i></div>
+        <div class="sc-label">People You Owe <span class="tip-icon" data-tip="Suppliers or people you still need to pay money to.">?</span></div>
+        <div class="sc-value">{{ creditors_count }}</div>
+        <div class="sc-meta">Sundry Creditors</div>
+    </div>
+</div>
+
+<!-- GROUP DISTRIBUTION -->
+<div class="grid-2" style="margin-bottom:20px;">
+    <section style="margin-bottom:0;">
+        <div class="section-header">
+            <h2>Group Distribution</h2>
+        </div>
+        <div style="height:160px;"><canvas id="groupChart"></canvas></div>
+    </section>
+    <section style="margin-bottom:0;">
+        <div class="section-header">
+            <h2>Balance by Group</h2>
+        </div>
+        {% for label, val in zip(group_labels, group_values) %}
+        <div class="metric-row">
+            <div class="metric-label">{{ label }}</div>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div class="progress-bar" style="width:80px;">
+                    <div class="progress-fill"
+                        style="width:{{ [[(val / (total_ledger_balance or 1) * 100), 0]|max, 100]|min|round(0)|int }}%;">
+                    </div>
+                </div>
+                <span class="metric-value">₹{{ "{:,.0f}".format(val) }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    </section>
+</div>
+
+<!-- ACCOUNTS TABLE -->
+<section>
+    <div class="section-header">
+        <h2>Accounts &amp; People <span class="tip-icon" data-tip="A list of all people and accounts — your customers, suppliers, banks, and expense accounts.">?</span></h2>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <input type="text" placeholder="Search..." id="ledgerSearch" onkeyup="filterLedgers()"
+                style="width:180px;margin:0;padding:8px 12px;font-size:13px;">
+            <button class="btn btn-primary" onclick="document.getElementById('addModal').classList.add('active')">
+                <i class="fas fa-plus"></i> Add New Account
+            </button>
+        </div>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Account / Person Name <span class="tip-icon" data-tip="The name of the person, bank, or expense account.">?</span></th>
+                <th>Category <span class="tip-icon" data-tip="What type of account this is — e.g. Cash, Bank, Customer (Debtor), Supplier (Creditor).">?</span></th>
+                <th>Contact Email <span class="tip-icon" data-tip="Email address for this person or company, used when sending bills.">?</span></th>
+                <th style="text-align:right;">Balance <span class="tip-icon" data-tip="Current money balance in this account. Green means they owe you; red means you owe them.">?</span></th>
+                <th style="text-align:right;">Actions</th>
+            </tr>
+        </thead>
+        <tbody id="ledgerTbody">
+            {% for l in ledgers %}
+            <tr>
+                <td>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div style="width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;
+              {% if l[3] == 'Cash-in-hand' or l[3] == 'Bank Accounts' %}background:#DCFCE7;color:#15803D;
+              {% elif l[3] == 'Sundry Debtors' %}background:#FEF3C7;color:#D97706;
+              {% elif l[3] == 'Sundry Creditors' %}background:#FEE2E2;color:#B91C1C;
+              {% else %}background:var(--accent-soft);color:var(--accent);{% endif %}">
+                            {{ l[2][0].upper() }}
+                        </div>
+                        <strong>{{ l[2] }}</strong>
+                    </div>
+                </td>
+                <td>
+                    <span class="chip {% if l[3] == 'Cash-in-hand' or l[3] == 'Bank Accounts' %}chip-green
+          {% elif l[3] == 'Sundry Debtors' %}chip-orange
+          {% elif l[3] == 'Sundry Creditors' %}chip-red
+          {% elif 'Sales' in l[3] %}chip-purple
+          {% else %}chip-gray{% endif %}">{{ l[3] }}</span>
+                </td>
+                <td style="color:var(--text-2);font-size:13px;">
+                    {% if l[5] %}<a href="mailto:{{ l[5] }}" style="color:var(--accent);text-decoration:none;">{{ l[5]
+                        }}</a>{% else %}—{% endif %}
+                </td>
+                <td style="text-align:right;font-weight:700;font-family:'DM Mono',monospace;
+          color:{% if l[4] >= 0 %}#15803D{% else %}#B91C1C{% endif %};">
+                    ₹{{ "{:,.2f}".format(l[4]) }}
+                </td>
+                <td style="text-align:right;">
+                    <button class="btn btn-outline btn-sm" data-id="{{ l[0] }}" data-name="{{ l[2] }}" data-group="{{ l[3] }}" data-balance="{{ l[4] }}" data-email="{{ l[5] }}" data-company="{{ l[1] }}" onclick="openEditModal(this)">
+                        <i class="fas fa-pen"></i>
+                    </button>
+                    <button onclick="openDeleteModal('/delete-ledger/{{ l[0] }}')" class="btn btn-danger btn-sm">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<!-- ADD / EDIT ACCOUNT MODAL -->
+<div id="addModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-top">
+            <h2>Add New Account / Person</h2>
+            <button class="close-modal" onclick="document.getElementById('addModal').classList.remove('active')"><i
+                    class="fas fa-times"></i></button>
+        </div>
+        <form action="/add-ledger" method="POST">
+            <input type="hidden" name="company_id" value="1">
+            <input type="hidden" name="ledger_name" id="ledger_name_hidden">
+            <input type="hidden" name="ledger_group" id="ledger_group_hidden">
+            <label class="form-label">Name (Person, Bank, or Expense) <span class="tip-icon" data-tip="Enter the full name of the customer, supplier, bank account, or expense type.">?</span></label>
+            <input type="text" name="name" placeholder="e.g. Ramesh Kumar / State Bank / Electricity" required>
+            <label class="form-label">Account Category <span class="tip-icon" data-tip="Cash-in-hand: physical cash. Bank: your bank account. Customer (Debtor): people who buy from you. Supplier (Creditor): people you buy from.">?</span></label>
+            <select name="group" required>
+                <option value="Cash-in-hand">💵 Cash in Hand (Physical Cash)</option>
+                <option value="Bank Accounts">🏦 Bank Account</option>
+                <option value="Sundry Debtors">👤 Customer (People Who Owe You)</option>
+                <option value="Sundry Creditors">🏭 Supplier (People You Owe)</option>
+                <option value="Sales Accounts">📈 Sales Account</option>
+                <option value="Purchase Accounts">📦 Purchase Account</option>
+                <option value="Indirect Expenses">💸 Expenses (Bills/Overhead)</option>
+            </select>
+            <label class="form-label">Email Address (Optional) <span class="tip-icon" data-tip="If you add an email here, bills will be pre-filled with it when you email this person.">?</span></label>
+            <input type="email" name="email" placeholder="contact@email.com">
+            <label class="form-label">Starting Balance (₹) <span class="tip-icon" data-tip="How much money is already in this account before you start using this app. Enter 0 if starting fresh.">?</span></label>
+            <input type="number" step="0.01" name="opening_balance" placeholder="0.00" required>
+            <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;">Save Account</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openEditModal(btn) {
+        const m = document.getElementById('addModal');
+        m.classList.add('active');
+        m.querySelector('h2').innerText = 'Edit Ledger';
+        const f = m.querySelector('form');
+        f.action = '/edit-ledger/' + btn.dataset.id;
+        f.ledger_name.value = btn.dataset.name;
+        f.ledger_group.value = btn.dataset.group;
+        f.opening_balance.value = btn.dataset.balance;
+        f.email.value = btn.dataset.email;
+        f.company_id.value = btn.dataset.company;
+    }
+
+    function filterLedgers() {
+        const q = document.getElementById('ledgerSearch').value.toLowerCase();
+        document.querySelectorAll('#ledgerTbody tr').forEach(r => {
+            r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+        });
+    }
+
+    // Group chart
+    const gLabels = {{ group_labels | safe }};
+    const gValues = {{ group_values | safe }};
+    
+    new Chart(document.getElementById('groupChart'), {
+        type: 'doughnut',
+        data: {
+            labels: gLabels, 
+            datasets: [{
+                data: gValues,
+                backgroundColor: ['#7C6FED', '#22C55E', '#F97316', '#EF4444', '#8B5CF6', '#06B6D4', '#F59E0B'],
+                borderWidth: 0, 
+                hoverOffset: 3
+            }]
+        },
+        options: {
+            responsive: true, 
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'right', labels: { boxWidth: 10, padding: 12, font: { size: 10 } } } },
+            cutout: '65%'
+        }
+    });
+</script>
+{% endblock %}

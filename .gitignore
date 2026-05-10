@@ -1,0 +1,26 @@
+# Personal secrets — NEVER commit these
+keys.json
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+venv/
+env/
+.env/
+
+# Generated files
+static/invoices/
+static/reports/
+
+# Database files
+*.db
+*.sqlite
+
+# IDE
+.vscode/settings.json
+.idea/

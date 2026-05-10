@@ -1,0 +1,290 @@
+{% extends "layout.html" %}
+{% block title %}Vouchers | TallyOpen{% endblock %}
+{% block content %}
+
+<!-- STATS -->
+<div class="stats-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
+    <div class="stat-card">
+        <div class="sc-icon" style="background:#EEF2FF;color:var(--accent);"><i class="fas fa-receipt"></i></div>
+        <div class="sc-label">Total Entries <span class="tip-icon" data-tip="Total number of money entries (payments, receipts, sales etc.) recorded so far.">?</span></div>
+        <div class="sc-value">{{ vouchers|length }}</div>
+        <div class="sc-meta">All time</div>
+    </div>
+    <div class="stat-card">
+        <div class="sc-icon" style="background:#DCFCE7;color:#15803D;"><i class="fas fa-arrow-up"></i></div>
+        <div class="sc-label">Money Received <span class="tip-icon" data-tip="Total money you received from sales and customers.">?</span></div>
+        <div class="sc-value" style="font-size:20px;">₹{{ "{:,.0f}".format(total_credited) }}</div>
+        <div class="sc-meta">Receipts &amp; Sales</div>
+    </div>
+    <div class="stat-card">
+        <div class="sc-icon" style="background:#FEE2E2;color:#B91C1C;"><i class="fas fa-arrow-down"></i></div>
+        <div class="sc-label">Money Paid Out <span class="tip-icon" data-tip="Total money you paid to suppliers or for expenses.">?</span></div>
+        <div class="sc-value" style="font-size:20px;">₹{{ "{:,.0f}".format(total_debited) }}</div>
+        <div class="sc-meta">Payments &amp; Purchases</div>
+    </div>
+    <div class="stat-card">
+        <div class="sc-icon" style="background:#FEF3C7;color:#D97706;"><i class="fas fa-shopping-cart"></i></div>
+        <div class="sc-label">Trade Entries <span class="tip-icon" data-tip="Total number of buying and selling transactions recorded.">?</span></div>
+        <div class="sc-value">{{ trade_count }}</div>
+        <div class="sc-meta">Buying &amp; selling</div>
+    </div>
+</div>
+
+<!-- ENTRY TYPE CHART -->
+<div class="grid-2" style="margin-bottom:20px;">
+    <section style="margin-bottom:0;">
+        <div class="section-header">
+            <h2>Entry Type Breakdown <span class="tip-icon" data-tip="A pie chart showing what types of entries you have most — payments, receipts, sales, etc.">?</span></h2>
+        </div>
+        <div style="height:160px;"><canvas id="typeChart"></canvas></div>
+    </section>
+    <section style="margin-bottom:0;">
+        <div class="section-header">
+            <h2>Recent Activity</h2>
+        </div>
+        {% for v in vouchers[:5] %}
+        <div class="timeline-item">
+            <div class="timeline-dot" style="{% if v[1]=='Receipt' %}background:#DCFCE7;color:#15803D;{% elif v[1]=='Payment' %}background:#FEE2E2;color:#B91C1C;{% else %}background:var(--accent-soft);color:var(--accent);{% endif %}">
+                <i class="fas {% if v[1]=='Receipt' %}fa-arrow-down{% elif v[1]=='Payment' %}fa-arrow-up{% else %}fa-exchange-alt{% endif %}"></i>
+            </div>
+            <div style="flex:1;">
+                <div style="display:flex;justify-content:space-between;align-items:start;">
+                    <div>
+                        <div style="font-size:13px;font-weight:600;">{{ v[2] }} → {{ v[3] }}</div>
+                        <div style="font-size:11px;color:var(--text-3);">{{ v[6] }} · {{ v[1] }}</div>
+                    </div>
+                    <div style="font-weight:700;font-size:13px;color:{% if v[1]=='Receipt' %}#15803D{% elif v[1]=='Payment' %}#B91C1C{% else %}var(--accent){% endif %};">
+                        ₹{{ "{:,.0f}".format(v[4]) }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </section>
+</div>
+
+<!-- ACTION BAR -->
+<div style="display:flex;gap:10px;margin-bottom:20px;">
+    <button class="btn btn-primary" onclick="document.getElementById('addModal').classList.add('active')">
+        <i class="fas fa-plus"></i> Add New Entry
+    </button>
+    <button class="btn btn-outline" onclick="document.getElementById('ocrModal').classList.add('active')">
+        <i class="fas fa-camera"></i> Scan a Bill / Receipt
+        <span class="tip-icon" data-tip="Take a photo of any bill or receipt. The app will automatically read the amount and date from it.">?</span>
+    </button>
+</div>
+
+<!-- ALL ENTRIES TABLE -->
+<section>
+    <div class="section-header">
+        <h2>All Money Entries <span class="tip-icon" data-tip="Every transaction you recorded — payments, receipts, sales, purchases.">?</span></h2>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <select id="typeFilter" onchange="filterVouchers()"
+                style="width:150px;margin:0;padding:8px 12px;font-size:12px;">
+                <option value="">All Types</option>
+                <option>Payment</option>
+                <option>Receipt</option>
+                <option>Sales</option>
+                <option>Purchase</option>
+                <option>Contra</option>
+                <option>Journal</option>
+            </select>
+            <input type="text" id="vSearch" placeholder="Search..." onkeyup="filterVouchers()"
+                style="width:160px;margin:0;padding:8px 12px;font-size:13px;">
+        </div>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Type <span class="tip-icon" data-tip="What kind of entry: Payment = you paid someone, Receipt = someone paid you, Sales = you sold goods, Purchase = you bought goods.">?</span></th>
+                <th>Money Goes From <span class="tip-icon" data-tip="The account from which money is going out (debit side).">?</span></th>
+                <th>Money Goes To <span class="tip-icon" data-tip="The account to which money is going in (credit side).">?</span></th>
+                <th style="text-align:right;">Amount</th>
+                <th style="text-align:right;">Actions</th>
+            </tr>
+        </thead>
+        <tbody id="vTbody">
+            {% for v in vouchers %}
+            <tr>
+                <td style="color:var(--text-2);font-size:12px;">{{ v[6] }}</td>
+                <td>
+                    <span
+                        class="chip {% if v[1]=='Receipt' %}chip-green{% elif v[1]=='Payment' %}chip-red{% elif v[1]=='Sales' %}chip-purple{% elif v[1]=='Purchase' %}chip-orange{% else %}chip-gray{% endif %}">
+                        {{ v[1] }}
+                    </span>
+                </td>
+                <td><strong>{{ v[2] }}</strong></td>
+                <td style="color:var(--text-2);">{{ v[3] }}</td>
+                <td style="text-align:right;font-weight:700;font-family:'DM Mono',monospace;">₹{{ "{:,.2f}".format(v[4])
+                    }}</td>
+                <td style="text-align:right;">
+                    <button onclick="openDeleteModal('/delete-voucher/{{ v[0] }}')" class="btn btn-danger btn-sm">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<!-- ADD ENTRY MODAL -->
+<div id="addModal" class="modal">
+    <div class="modal-content" style="max-width:540px;">
+        <div class="modal-top">
+            <h2>Add a New Money Entry</h2>
+            <button class="close-modal" onclick="document.getElementById('addModal').classList.remove('active')"><i
+                    class="fas fa-times"></i></button>
+        </div>
+        <form action="/add-voucher" method="POST">
+            <div class="grid-2">
+                <div>
+                    <label class="form-label">Date <span class="tip-icon" data-tip="The date when this transaction happened.">?</span></label>
+                    <input type="date" name="date" value="{{ today_date }}" required>
+                </div>
+                <div>
+                    <label class="form-label">Entry Type <span class="tip-icon" data-tip="Payment: you paid someone. Receipt: someone paid you. Sales: you sold goods. Purchase: you bought goods.">?</span></label>
+                    <select name="type" id="vType" onchange="toggleInventory()" required>
+                        <option>Payment</option>
+                        <option>Receipt</option>
+                        <option>Sales</option>
+                        <option>Purchase</option>
+                        <option>Contra</option>
+                        <option>Journal</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div>
+                    <label class="form-label">Money Goes FROM <span class="tip-icon" data-tip="Which account or person the money is coming from (debit side).">?</span></label>
+                    <select name="dr_ledger_id" required>{% for l in ledgers %}<option value="{{ l[0] }}">{{ l[1] }}
+                        </option>{% endfor %}</select>
+                </div>
+                <div>
+                    <label class="form-label">Money Goes TO <span class="tip-icon" data-tip="Which account or person the money is going to (credit side).">?</span></label>
+                    <select name="cr_ledger_id" required>{% for l in ledgers %}<option value="{{ l[0] }}">{{ l[1] }}
+                        </option>{% endfor %}</select>
+                </div>
+            </div>
+            <div id="invSection"
+                style="display:none;padding:14px;background:#F9F9FF;border-radius:10px;margin-bottom:14px;border:1px solid var(--border);">
+                <label class="form-label">Link to Stock Item <span class="tip-icon" data-tip="If this entry is a sale or purchase, choose which item from your stock it relates to.">?</span></label>
+                <div class="grid-2">
+                    <select name="item_id">
+                        <option value="">Select Item</option>{% for i in inventory_items %}<option value="{{ i[0] }}">{{ i[1] }} ({{ i[2] }})</option>{% endfor %}
+                    </select>
+                    <input type="number" name="quantity" placeholder="Qty (How many?)">
+                </div>
+            </div>
+            <label class="form-label">Total Amount (₹) <span class="tip-icon" data-tip="The total money amount for this entry.">?</span></label>
+            <input type="number" step="0.01" name="amount" placeholder="0.00" required>
+            <label class="form-label">Note / Description (Optional) <span class="tip-icon" data-tip="Write a short note about this entry so you remember what it was for.">?</span></label>
+            <textarea name="narration" placeholder="e.g. Paid electricity bill for April"
+                style="height:80px;resize:none;"></textarea>
+            <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;height:46px;">
+                <i class="fas fa-check"></i> Save Entry
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- SCAN A BILL MODAL -->
+<div id="ocrModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-top">
+            <h2><i class="fas fa-camera" style="color:var(--accent);margin-right:8px;"></i>Scan a Bill / Receipt
+                <span class="tip-icon" data-tip="Upload a photo of any bill or receipt and the app will automatically read the amount, date, and seller name from it.">?</span>
+            </h2>
+            <button class="close-modal" onclick="document.getElementById('ocrModal').classList.remove('active')"><i
+                    class="fas fa-times"></i></button>
+        </div>
+        <div style="background:var(--accent-soft);border-radius:10px;padding:16px;margin-bottom:16px;">
+            <p style="font-size:13px;color:var(--accent);font-weight:600;"><i class="fas fa-info-circle"
+                    style="margin-right:6px;"></i>AI-powered reading</p>
+            <p style="font-size:13px;color:var(--text-2);margin-top:4px;">Take a clear photo of any paper bill or receipt.
+                The app will automatically fill in the amount and date for you.</p>
+        </div>
+        <form id="ocrForm" enctype="multipart/form-data">
+            <label class="form-label">Upload Bill / Receipt Photo <span class="tip-icon" data-tip="Choose an image file (JPG or PNG) of the bill you want to scan.">?</span></label>
+            <input type="file" name="file" accept="image/*" required>
+            <button type="button" id="ocrBtn" onclick="processOCR()" class="btn btn-primary"
+                style="width:100%;justify-content:center;">
+                <i class="fas fa-search"></i> Read Bill Details
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function toggleInventory() {
+        const t = document.getElementById('vType').value;
+        document.getElementById('invSection').style.display = (t === 'Sales' || t === 'Purchase') ? 'block' : 'none';
+    }
+
+    function filterVouchers() {
+        const q = document.getElementById('vSearch').value.toLowerCase();
+        const t = document.getElementById('typeFilter').value.toLowerCase();
+        document.querySelectorAll('#vTbody tr').forEach(r => {
+            const matchQ = r.textContent.toLowerCase().includes(q);
+            const matchT = !t || r.textContent.toLowerCase().includes(t);
+            r.style.display = (matchQ && matchT) ? '' : 'none';
+        });
+    }
+
+    async function processOCR() {
+        const btn = document.getElementById('ocrBtn');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+        btn.disabled = true;
+        const formData = new FormData(document.getElementById('ocrForm'));
+        try {
+            const res = await fetch('/ocr-scan', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (data.error) alert(data.error);
+            else {
+                document.getElementById('ocrModal').classList.remove('active');
+                document.getElementById('addModal').classList.add('active');
+                const f = document.querySelector('#addModal form');
+                f.date.value = data.extracted_date; f.amount.value = data.extracted_amount;
+                f.narration.value = data.extracted_narration; f.type.value = 'Purchase';
+                toggleInventory();
+            }
+        } catch (e) { alert("OCR Failed"); }
+        finally { btn.innerHTML = '<i class="fas fa-search"></i> Extract Details'; btn.disabled = false; }
+    }
+
+    // Voucher type chart
+    const typeLabels = [];
+    const typeValues = [];
+    const typeMap = {};
+    {% for v in vouchers %}
+    typeMap["{{ v[1] }}"] = (typeMap["{{ v[1] }}"] || 0) + 1;
+    {% endfor %}
+    
+    Object.keys(typeMap).forEach(k => {
+        typeLabels.push(k);
+        typeValues.push(typeMap[k]);
+    });
+
+    new Chart(document.getElementById('typeChart'), {
+        type: 'doughnut',
+        data: {
+            labels: typeLabels,
+            datasets: [{
+                data: typeValues,
+                backgroundColor: ['#7C6FED', '#22C55E', '#F97316', '#EF4444', '#8B5CF6', '#06B6D4'],
+                borderWidth: 0, 
+                hoverOffset: 3
+            }]
+        },
+        options: {
+            responsive: true, 
+            maintainAspectRatio: false,
+            plugins: { 
+                legend: { position: 'right', labels: { boxWidth: 10, padding: 10, font: { size: 11 } } } 
+            },
+            cutout: '60%'
+        }
+    });
+</script>
+{% endblock %}

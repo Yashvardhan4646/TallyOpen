@@ -1,0 +1,76 @@
+=========================================
+      TALLY CLONE - FEATURE LIST
+=========================================
+
+1. DASHBOARD & ANALYTICS
+-----------------------------------------
+- Real-time financial overview (Total Assets, Liquid Cash, Receivables).
+- Interactive Chart.js visualizers for Top Inventory Items and Income vs Expense.
+- Live feed of recent accounting transactions.
+
+2. COMPANY MANAGEMENT
+-----------------------------------------
+- Multi-company registration system.
+- Dynamic State & City cascading dropdowns powered by the CountriesNow API.
+- Strict Regex-based Indian GSTIN validation (auto-uppercase).
+- JSON-based structured address storage.
+
+3. LEDGER MANAGEMENT (CHART OF ACCOUNTS)
+-----------------------------------------
+- Create standard ledgers (Sundry Debtors, Creditors, Bank, Cash, etc.).
+- Set opening balances.
+- Attach specific customer email addresses directly to Debtors for automated billing.
+
+4. INVENTORY MANAGEMENT
+-----------------------------------------
+- Track stock items, quantities, and pricing.
+- Auto-syncs with the Voucher system (stock automatically deducts on Sales and increases on Purchases).
+- Estimated stock value dynamically calculated on the Reports page.
+
+5. DOUBLE-ENTRY VOUCHER SYSTEM
+-----------------------------------------
+- True double-entry bookkeeping (Select Debit and Credit ledgers).
+- Supports 6 voucher types: Payment, Receipt, Sales, Purchase, Journal, Contra.
+- Live inventory item mapping during Sales/Purchase entries.
+- Full CRUD operations with automatic balance reversal upon deletion.
+
+6. AI RECEIPT SCANNER (OCR)
+-----------------------------------------
+- Upload photos of physical bills/receipts.
+- Connects to the Cloud OCR API (ocr.space) to extract text.
+- Smart Regex logic automatically identifies and fills in the:
+  > Transaction Date
+  > Total Amount
+  > Vendor Name / Narration
+  > Auto-switches the voucher type to "Purchase".
+
+7. BILLING & AUTOMATED PDF INVOICES
+-----------------------------------------
+- Professional Tax Invoice PDF generation (using fpdf2).
+- Automatically includes Company Details, Customer Details, Itemized billing, and calculated Total amounts.
+
+8. LIVE SMTP EMAIL SYSTEM
+-----------------------------------------
+- Send PDFs and Reports directly from the application via Gmail SMTP.
+- Beautiful Email Modals:
+  > In the Billing tab: Pulls the customer's saved email from their Ledger (or defaults to your preferred email) and sends the PDF invoice.
+  > In the Reports tab: Exports the Dashboard as a PNG and emails the snapshot to any recipient.
+
+9. FINANCIAL REPORTING
+-----------------------------------------
+- Auto-calculating Balance Sheet.
+- Auto-calculating Profit & Loss Statement (Income vs Expenses).
+- Real-time Trial Balance with matching Totals.
+- Visual Group Distribution pie charts.
+
+10. EXPORT CAPABILITIES
+-----------------------------------------
+- 1-Click Export to Excel (.xlsx): Downloads Ledgers, Vouchers, and Inventory into distinct spreadsheet tabs.
+- 1-Click Export to PNG: Uses html2canvas to take a high-resolution screenshot of the financial reports.
+
+11. PREMIUM UI / UX
+-----------------------------------------
+- Modern glassmorphism design language (blur backdrops, sleek inputs).
+- Elegant, edge-to-edge modals with orange/gold gradient accents.
+- Soft micro-animations on buttons and cards.
+- Mobile-responsive sidebar navigation.
