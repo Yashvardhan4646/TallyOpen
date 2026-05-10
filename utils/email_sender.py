@@ -5,15 +5,14 @@ import os
 def send_invoice_email(to_email, pdf_path, invoice_id, settings=None):
     """
     Sends an email with the PDF invoice attached via Gmail SMTP.
-    Reads SMTP credentials from the settings dict (from DB), not hardcoded.
+    Returns (success_bool, message_str)
     """
     smtp_email    = (settings or {}).get("smtp_email", "")
     smtp_password = (settings or {}).get("smtp_password", "")
     business_name = (settings or {}).get("business_name", "Our Business")
 
     if not smtp_email or not smtp_password:
-        print("Email sending skipped: no SMTP email/password configured in Settings → Keys.")
-        return False
+        return False, "SMTP Email or App Password not configured in Settings."
 
     try:
         msg = EmailMessage()
@@ -21,26 +20,41 @@ def send_invoice_email(to_email, pdf_path, invoice_id, settings=None):
         msg['From']    = smtp_email
         msg['To']      = to_email
         msg.set_content(
-            f'Dear Customer,\n\n'
-            f'Please find your bill (invoice) attached to this email.\n\n'
-            f'Thank you for your business!\n\n'
-            f'— {business_name}'
+            f'Dear Customer,\n\nPlease find your bill attached.\n\nThank you!\n\n— {business_name}'
         )
 
         with open(pdf_path, 'rb') as f:
-            pdf_data = f.read()
-            msg.add_attachment(pdf_data, maintype='application', subtype='pdf',
-                               filename=os.path.basename(pdf_path))
+            msg.add_attachment(f.read(), maintype='application', subtype='pdf', filename=os.path.basename(pdf_path))
 
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=15) as smtp:
             smtp.login(smtp_email, smtp_password)
             smtp.send_message(msg)
 
-        print(f"Successfully sent invoice INV-{invoice_id} to {to_email}")
-        return True
+        return True, "Email sent successfully!"
+    except smtplib.SMTPAuthenticationError:
+        return False, "Authentication Failed: Check if your App Password is correct."
     except Exception as e:
-        print(f"Failed to send email: {e}")
-        return False
+        return False, f"Failed: {str(e)}"
+
+def send_test_email(settings):
+    """Sends a test email to the configured SMTP email address."""
+    smtp_email = settings.get("smtp_email", "")
+    if not smtp_email:
+        return False, "No email configured."
+    
+    try:
+        msg = EmailMessage()
+        msg['Subject'] = 'TallyOpen - Email Test'
+        msg['From']    = smtp_email
+        msg['To']      = smtp_email
+        msg.set_content("Success! Your TallyOpen email system is working correctly.")
+
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=15) as smtp:
+            smtp.login(smtp_email, settings.get("smtp_password", ""))
+            smtp.send_message(msg)
+        return True, "Test Success! Check your inbox."
+    except Exception as e:
+        return False, str(e)
 
 
 def send_report_email(to_email, png_path, settings=None):

@@ -1022,6 +1022,23 @@
             </div>
         </div>
 
+        <!-- Flash Messages -->
+        {% if request.args.get('error') %}
+        <div style="background: #FEF2F2; color: #EF4444; padding: 12px 20px; border-radius: 12px; margin-bottom: 24px; border: 1px solid #FEE2E2; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 10px; animation: slideUp 0.3s ease;">
+            <i class="fas fa-exclamation-circle"></i>
+            <span>{{ request.args.get('error') }}</span>
+            <button onclick="this.parentElement.style.display='none'" style="margin-left: auto; background: none; border: none; color: #EF4444; cursor: pointer; font-size: 16px;">&times;</button>
+        </div>
+        {% endif %}
+
+        {% if request.args.get('success') %}
+        <div style="background: #ECFDF5; color: #10B981; padding: 12px 20px; border-radius: 12px; margin-bottom: 24px; border: 1px solid #D1FAE5; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 10px; animation: slideUp 0.3s ease;">
+            <i class="fas fa-check-circle"></i>
+            <span>{{ request.args.get('success') }}</span>
+            <button onclick="this.parentElement.style.display='none'" style="margin-left: auto; background: none; border: none; color: #10B981; cursor: pointer; font-size: 16px;">&times;</button>
+        </div>
+        {% endif %}
+
         {% block content %}{% endblock %}
     </div>
 

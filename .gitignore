@@ -20,6 +20,12 @@ static/reports/
 # Database files
 *.db
 *.sqlite
+tally.db
+
+# PyInstaller / Build
+dist/
+build/
+*.spec
 
 # IDE
 .vscode/settings.json

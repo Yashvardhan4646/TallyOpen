@@ -24,6 +24,11 @@
                     <span class="tip-icon" data-tip="Enter your own email and API keys so the app can send bills by email and use AI features.">?</span>
                 </a>
             </div>
+            <div style="padding: 16px; border-top: 1px solid var(--border);">
+                <button onclick="shutdownApp()" class="btn" style="width: 100%; justify-content: center; background: #FEF2F2; color: #EF4444; border: 1px solid #FEE2E2; font-size: 13px;">
+                    <i class="fas fa-power-off" style="margin-right: 8px;"></i> Shutdown App
+                </button>
+            </div>
         </div>
     </section>
 
@@ -196,6 +201,11 @@
                             style="position:absolute;right:12px;top:12px;background:none;border:none;cursor:pointer;color:var(--text-3);font-size:14px;">
                             <i class="fas fa-eye"></i>
                         </button>
+                    <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border);">
+                        <button type="button" onclick="testEmailSettings()" class="btn btn-outline" style="width:100%;justify-content:center;">
+                            <i class="fas fa-paper-plane"></i> Test Email System
+                        </button>
+                        <p id="testStatus" style="font-size:12px;margin-top:8px;text-align:center;display:none;"></p>
                     </div>
                 </div>
 
@@ -223,12 +233,12 @@
                 <!-- ── DB Info (read-only) ── -->
                 <div style="background: #F3F4F6; border-radius: 12px; padding: 18px; margin-bottom: 24px; border: 1px dashed #D1D5DB;">
                     <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; display:flex; gap:8px; align-items:center;">
-                        <i class="fas fa-database" style="color:#6B7280;"></i> Database (MySQL) Connection
-                        <span class="tip-icon" data-tip="The database details are set in the keys.json file on your server. Edit that file to change them.">?</span>
+                        <i class="fas fa-database" style="color:#6B7280;"></i> Database (SQLite) Status
+                        <span class="tip-icon" data-tip="Your app uses a local database file called tally.db. No complex setup is needed.">?</span>
                     </h4>
                     <p style="font-size: 12px; color: var(--text-2); line-height:1.8;">
-                        Database connection details (host, user, password) are stored in <code>keys.json</code> on your server — <strong>not here</strong>.<br>
-                        Edit <code>keys.json</code> to change them. This keeps them safe and out of the app.
+                        Your data is stored in a local SQLite file (<code>tally.db</code>).<br>
+                        This file is located in the same folder as the TallyOpen executable. To back up your data, just copy that file.
                     </p>
                 </div>
 
@@ -369,6 +379,56 @@
 
     function openGoogleHelp() {
         document.getElementById('googleHelpModal').classList.add('active');
+    }
+
+    async function testEmailSettings() {
+        const btn = event.currentTarget;
+        const status = document.getElementById('testStatus');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+        status.style.display = 'block';
+        status.style.color = 'var(--text-2)';
+        status.innerText = "Checking connection...";
+
+        try {
+            const res = await fetch('/test-email', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                status.style.color = '#15803D';
+                status.innerText = "✅ " + data.message;
+            } else {
+                status.style.color = '#B91C1C';
+                status.innerText = "❌ " + data.message;
+            }
+        } catch (e) {
+            status.style.color = '#B91C1C';
+            status.innerText = "❌ Connection Error";
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Test Email System';
+        }
+    }
+
+    function shutdownApp() {
+        if (confirm("Are you sure you want to shutdown the application? You will need to click the executable/shortcut again to restart it.")) {
+            fetch('/shutdown', { method: 'POST' })
+                .then(response => response.text())
+                .then(text => {
+                    document.body.innerHTML = `
+                        <div style="height: 100vh; display: flex; align-items: center; justify-content: center; font-family: sans-serif; background: #f8fafc;">
+                            <div style="text-align: center; padding: 40px; background: white; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); max-width: 400px;">
+                                <div style="color: #EF4444; font-size: 48px; margin-bottom: 20px;"><i class="fas fa-power-off"></i></div>
+                                <h1 style="font-size: 20px; margin-bottom: 12px; color: #1e293b;">App Shutdown Successfully</h1>
+                                <p style="color: #64748b; font-size: 14px; line-height: 1.6;">The background server has been stopped. You can safely close this browser tab now.</p>
+                                <button onclick="window.close()" style="margin-top: 24px; padding: 10px 20px; background: #64748b; color: white; border: none; border-radius: 8px; cursor: pointer;">Close Window</button>
+                            </div>
+                        </div>
+                    `;
+                })
+                .catch(err => {
+                    alert("Error shutting down: " + err);
+                });
+        }
     }
 
     // Handle nav clicks

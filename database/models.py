@@ -3,7 +3,7 @@ from database.db import cursor, db
 # Companies
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS companies (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     name VARCHAR(255),
     address TEXT,
     gst_number VARCHAR(100)
@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS companies (
 # Ledgers
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS ledgers (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     company_id INT,
     ledger_name VARCHAR(255),
     ledger_group VARCHAR(255),
@@ -31,7 +31,7 @@ except:
 # Inventory
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS inventory (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     item_name VARCHAR(255),
     quantity INT,
     unit VARCHAR(50) DEFAULT 'Pcs',
@@ -47,7 +47,7 @@ except:
 # Vouchers
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS vouchers (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     date DATE,
     voucher_type VARCHAR(255),
     dr_ledger_id INT,
@@ -55,12 +55,14 @@ CREATE TABLE IF NOT EXISTS vouchers (
     amount DECIMAL(12,2),
     narration TEXT,
     item_id INT DEFAULT NULL,
-    item_quantity DECIMAL(12,2) DEFAULT 0.00
+    item_quantity DECIMAL(12,2) DEFAULT 0.00,
+    gst_rate DECIMAL(5,2) DEFAULT 0.00
 )
 """)
 
+# SQLite does not support MODIFY COLUMN — no migration needed here
 try:
-    cursor.execute("ALTER TABLE vouchers MODIFY COLUMN item_quantity DECIMAL(12,2) DEFAULT 0.00")
+    cursor.execute("ALTER TABLE vouchers ADD COLUMN gst_rate DECIMAL(5,2) DEFAULT 0.00")
 except:
     pass
 
@@ -108,7 +110,7 @@ if not cursor.fetchone():
 # Users Table for Auth
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     username VARCHAR(100) UNIQUE,
     password VARCHAR(255)
 )

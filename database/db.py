@@ -1,36 +1,73 @@
-import mysql.connector
-import json
+import sqlite3
 import os
+
 import sys
 
-# Load DB credentials from keys.json (user-supplied, never committed to git)
-_keys_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "keys.json")
+# Path to the local SQLite database file
+if getattr(sys, 'frozen', False):
+    # If running as a bundle, use the parent directory of the .exe folder
+    # to prevent data loss during rebuilds.
+    _base_dir = os.path.dirname(os.path.dirname(sys.executable))
+else:
+    # If running as a script, use the project root
+    _base_dir = os.path.dirname(os.path.dirname(__file__))
 
-if not os.path.exists(_keys_path):
-    print("\n" + "="*60)
-    print("  ERROR: keys.json not found!")
-    print("  Copy keys.example.json to keys.json and fill in your")
-    print("  MySQL database details before starting the app.")
-    print("="*60 + "\n")
-    sys.exit(1)
+_db_path = os.path.join(_base_dir, "tally.db")
 
-with open(_keys_path, "r") as f:
-    _keys = json.load(f)
+def get_db_path():
+    return _db_path
 
-_db_cfg = _keys.get("db", {})
 
-try:
-    db = mysql.connector.connect(
-        host=_db_cfg.get("host", "localhost"),
-        user=_db_cfg.get("user", "root"),
-        password=_db_cfg.get("password", ""),
-        database=_db_cfg.get("database", "tallyopen")
-    )
-    cursor = db.cursor()
-except mysql.connector.Error as e:
-    print("\n" + "="*60)
-    print(f"  ERROR: Could not connect to MySQL database!")
-    print(f"  Details: {e}")
-    print("  Check your keys.json and make sure MySQL is running.")
-    print("="*60 + "\n")
-    sys.exit(1)
+class SQLiteCursorWrapper:
+    """
+    A wrapper around an sqlite3 cursor that transparently converts
+    MySQL-style %s parameter placeholders to SQLite-style ?.
+    Also wraps the connection so db.commit() works as expected.
+    """
+    def __init__(self, conn):
+        self._conn = conn
+        self._cursor = conn.cursor()
+
+    def execute(self, query, params=None):
+        # Convert MySQL %s parameter syntax to SQLite ? syntax
+        query = query.replace('%s', '?')
+        if params is not None:
+            return self._cursor.execute(query, params)
+        else:
+            return self._cursor.execute(query)
+
+    def fetchone(self):
+        return self._cursor.fetchone()
+
+    def fetchall(self):
+        return self._cursor.fetchall()
+
+    @property
+    def lastrowid(self):
+        return self._cursor.lastrowid
+
+    @property
+    def rowcount(self):
+        return self._cursor.rowcount
+
+    def commit(self):
+        self._conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# Module-level db and cursor used by models.py (schema creation only)
+# For request handling, app.py imports `db` and `cursor` which are replaced
+# per-request via the `get_connection()` helper below.
+# ---------------------------------------------------------------------------
+db = sqlite3.connect(_db_path, check_same_thread=False)
+cursor = SQLiteCursorWrapper(db)
+
+
+def get_connection():
+    """
+    Returns a fresh (conn, wrapped_cursor) pair for use in a single request.
+    Each Flask request should call this to get its own connection, preventing
+    thread-safety issues with a single shared cursor.
+    """
+    conn = sqlite3.connect(_db_path)
+    return conn, SQLiteCursorWrapper(conn)

@@ -1,5 +1,5 @@
-from flask import Flask, render_template, request, redirect, url_for, send_file, session
-from database.db import cursor, db
+from flask import Flask, render_template, request, redirect, url_for, send_file, session, g
+from database.db import get_connection
 import database.models
 import webbrowser
 import threading
@@ -10,6 +10,60 @@ import json
 
 app = Flask(__name__)
 app.secret_key = "tally_pro_super_secret_key"
+
+# Per-request SQLite connection
+@app.before_request
+def open_db():
+    g.conn, g.cursor = get_connection()
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    # Log the error to console (will be visible if user runs from terminal)
+    import traceback
+    print("!!! SERVER ERROR !!!")
+    traceback.print_exc()
+    return f"Internal Server Error: {str(e)}", 500
+
+@app.teardown_request
+def close_db(exc):
+    conn = getattr(g, 'conn', None)
+    if conn:
+        conn.close()
+
+# Shim so all code that does `from database.db import cursor, db` still works
+# by delegating to the per-request objects
+class _CursorProxy:
+    def __getattr__(self, name):
+        from flask import g
+        # If g.cursor doesn't exist (e.g. outside request), fall back to module-level cursor
+        if 'cursor' in g:
+            return getattr(g.cursor, name)
+        import database.db as _db
+        return getattr(_db.cursor, name)
+    def __call__(self, *a, **kw):
+        from flask import g
+        if 'cursor' in g:
+            return g.cursor(*a, **kw)
+        import database.db as _db
+        return _db.cursor(*a, **kw)
+
+class _DbProxy:
+    def __getattr__(self, name):
+        from flask import g
+        if 'conn' in g:
+            return getattr(g.conn, name)
+        import database.db as _db
+        return getattr(_db.db, name)
+    
+    def commit(self):
+        from flask import g
+        if 'conn' in g:
+            return g.conn.commit()
+        import database.db as _db
+        return _db.db.commit()
+
+cursor = _CursorProxy()
+db = _DbProxy()
 
 # ─── Helper: load settings row from DB as a dict ───────────────────────────
 def get_settings():
@@ -72,7 +126,7 @@ def dashboard():
     total_balance = float(res[0] or 0) if res else 0.0
 
     # Trend Data (Monthly)
-    cursor.execute("SELECT DATE_FORMAT(date, '%b'), SUM(amount) FROM vouchers GROUP BY DATE_FORMAT(date, '%b') ORDER BY MIN(date) ASC LIMIT 12")
+    cursor.execute("SELECT strftime('%m', date) as mon, SUM(amount) FROM vouchers GROUP BY mon ORDER BY mon ASC LIMIT 12")
     trend_data = cursor.fetchall()
     trend_labels = [t[0] for t in trend_data]
     trend_values = [float(t[1]) for t in trend_data]
@@ -307,7 +361,7 @@ def delete_ledger(id):
 # =====================================
 @app.route("/inventory")
 def view_inventory():
-    cursor.execute("SELECT * FROM inventory")
+    cursor.execute("SELECT id, item_name, quantity, price, unit FROM inventory")
     raw_inventory = cursor.fetchall()
     
     # Standardize data types: 0:id, 1:item_name, 2:quantity, 3:price, 4:unit
@@ -338,9 +392,13 @@ def view_inventory():
 @app.route("/add-inventory", methods=["POST"])
 def add_inventory():
     name = request.form["name"]
-    quantity = request.form["quantity"]
+    try:
+        quantity = float(request.form["quantity"])
+        rate = float(request.form["rate"])
+    except ValueError:
+        return redirect(url_for("view_inventory", error="Invalid number for quantity or rate"))
+        
     unit = request.form.get("unit", "Pcs")
-    rate = request.form["rate"]
     cursor.execute("INSERT INTO inventory (item_name, quantity, unit, price) VALUES (%s, %s, %s, %s)", (name, quantity, unit, rate))
     db.commit()
     return redirect(url_for("view_inventory"))
@@ -487,12 +545,12 @@ def reports():
     total_tb = sum(float(row[1]) for row in trial_balance)
 
     # Chart Data (Monthly trend for reports)
-    cursor.execute("SELECT DATE_FORMAT(date, '%b'), SUM(amount) FROM vouchers WHERE voucher_type IN ('Receipt', 'Sales') GROUP BY DATE_FORMAT(date, '%b') ORDER BY MIN(date) ASC")
+    cursor.execute("SELECT strftime('%m', date) as mon, SUM(amount) FROM vouchers WHERE voucher_type IN ('Receipt', 'Sales') GROUP BY mon ORDER BY mon ASC")
     inc_trend = cursor.fetchall()
     inc_labels = [t[0] for t in inc_trend]
     inc_values = [float(t[1]) for t in inc_trend]
 
-    cursor.execute("SELECT DATE_FORMAT(date, '%b'), SUM(amount) FROM vouchers WHERE voucher_type IN ('Payment', 'Purchase') GROUP BY DATE_FORMAT(date, '%b') ORDER BY MIN(date) ASC")
+    cursor.execute("SELECT strftime('%m', date) as mon, SUM(amount) FROM vouchers WHERE voucher_type IN ('Payment', 'Purchase') GROUP BY mon ORDER BY mon ASC")
     exp_trend = cursor.fetchall()
     exp_values = [float(t[1]) for t in exp_trend]
 
@@ -558,7 +616,11 @@ def generate_invoice():
     
     item_name = item[0]
     unit_price = float(item[1])
-    stock_qty = float(item[2])
+    current_stock = float(item[2])
+
+    # 1b. Check Stock Availability
+    if current_stock < quantity:
+        return redirect(url_for("billing", error=f"Insufficient stock for {item_name}. Available: {current_stock}, Requested: {quantity}"))
     
     # 2. Calculate Amounts
     subtotal = unit_price * quantity
@@ -592,9 +654,9 @@ def generate_invoice():
     narration = f"Sales of {item_name} (Qty: {quantity})"
     today = datetime.now().strftime("%Y-%m-%d")
     cursor.execute("""
-        INSERT INTO vouchers (voucher_type, dr_ledger_id, cr_ledger_id, amount, narration, date, item_id, item_quantity)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-    """, ('Sales', customer_ledger_id, sales_ledger_id, total_amount, narration, today, item_id, quantity))
+        INSERT INTO vouchers (voucher_type, dr_ledger_id, cr_ledger_id, amount, narration, date, item_id, item_quantity, gst_rate)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """, ('Sales', customer_ledger_id, sales_ledger_id, total_amount, narration, today, item_id, quantity, gst_rate))
     
     # 5. Update Balances (Double Entry: Dr Customer, Cr Sales)
     cursor.execute("UPDATE ledgers SET balance = balance + %s WHERE id = %s", (total_amount, customer_ledger_id))
@@ -669,6 +731,13 @@ def email_report_png():
     else:
         return {"error": "Email failed. Please check your SMTP settings in Settings → Keys tab."}, 500
 
+@app.route("/test-email", methods=["POST"])
+def test_email():
+    s = get_settings()
+    from utils.email_sender import send_test_email
+    success, message = send_test_email(s)
+    return {"success": success, "message": message}
+
 # =====================================
 # INTEGRATIONS: PDF EMAIL & OCR
 # =====================================
@@ -681,9 +750,10 @@ def send_invoice_email_route():
         return redirect(url_for("billing"))
 
     cursor.execute("""
-        SELECT v.id, v.date, l.ledger_name, l.email, v.amount, v.narration
+        SELECT v.id, v.date, l.ledger_name, l.email, v.amount, v.narration, v.item_id, v.item_quantity, i.item_name, v.gst_rate
         FROM vouchers v
         LEFT JOIN ledgers l ON v.dr_ledger_id = l.id
+        LEFT JOIN inventory i ON v.item_id = i.id
         WHERE v.id = %s
     """, (voucher_id,))
     v = cursor.fetchone()
@@ -696,10 +766,15 @@ def send_invoice_email_route():
             'customer_name': v[2],
             'email': target_email,
             'amount': v[4],
-            'narration': v[5]
+            'narration': v[5],
+            'item_name': v[8],
+            'quantity': v[7],
+            'gst_rate': v[9]
         }
         pdf_path = generate_invoice_pdf(invoice_data, settings=s)
-        send_invoice_email(target_email, pdf_path, voucher_id, settings=s)
+        success, msg = send_invoice_email(target_email, pdf_path, voucher_id, settings=s)
+        if not success:
+            print(f"EMAIL ERROR: {msg}")
 
     return redirect(url_for("billing"))
 
@@ -779,12 +854,52 @@ def ocr_scan():
         print("OCR Error:", e)
         return {"error": str(e)}, 500
 
-def open_browser():
-    webbrowser.open_new("http://127.0.0.1:5000")
+@app.route("/shutdown", methods=["POST"])
+def shutdown():
+    # Force exit the process. 
+    # In a standalone EXE, this is the cleanest way to stop the background server.
+    import os
+    import time
+    
+    # Give the browser a moment to receive the response before killing the process
+    def kill_later():
+        time.sleep(1)
+        os._exit(0)
+    
+    import threading
+    threading.Thread(target=kill_later).start()
+    
+    return "App is shutting down... You can close this tab now."
+
+def find_free_port():
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(('', 0))
+    p = s.getsockname()[1]
+    s.close()
+    return p
 
 if __name__ == "__main__":
-    import os
-    # Open browser once
-    if not os.environ.get('WERKZEUG_RUN_MAIN'):
-        threading.Timer(1.5, open_browser).start()
-    app.run(debug=True)
+    import os, sys, threading, webbrowser, time, socket, logging
+    from logging.handlers import RotatingFileHandler
+    from database.db import get_db_path
+
+    # Error Logging
+    log_path = os.path.join(os.path.dirname(get_db_path()), "error_log.txt")
+    fh = RotatingFileHandler(log_path, maxBytes=1024*1024, backupCount=1)
+    fh.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
+    app.logger.addHandler(fh)
+
+    port = 5000
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    is_busy = s.connect_ex(('127.0.0.1', port)) == 0
+    s.close()
+    if is_busy:
+        port = find_free_port()
+
+    def launch():
+        time.sleep(2)
+        webbrowser.open(f"http://127.0.0.1:{port}")
+    
+    threading.Thread(target=launch, daemon=True).start()
+    app.run(host='127.0.0.1', port=port, debug=False)
