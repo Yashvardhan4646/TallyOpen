@@ -6,7 +6,6 @@ import threading
 import io
 import pandas as pd
 from datetime import datetime
-import google.generativeai as genai
 import json
 
 app = Flask(__name__)
@@ -25,7 +24,6 @@ def get_settings():
         "gst_number":       row[3] or "",
         "currency":         row[4] or "INR",
         "fy_start":         row[5],
-        "gemini_api_key":   row[6] or "",
         "smtp_email":       row[7] or "",
         "smtp_password":    row[8] or "",
         "ocr_api_key":      row[9] or "",
@@ -204,14 +202,12 @@ def update_settings():
     fy      = request.form.get("fy_start") or None
     show_tips = 1 if request.form.get("show_tooltips") == "on" else 0
     # Keys tab fields
-    g_key   = request.form.get("gemini_api_key") or None
     s_email = request.form.get("smtp_email") or None
     s_pass  = request.form.get("smtp_password") or None
     ocr_key = request.form.get("ocr_api_key") or None
 
     # Only update key fields if user actually typed something (don't overwrite with blank)
     existing = get_settings()
-    if not g_key:   g_key   = existing.get("gemini_api_key") or None
     if not s_email: s_email = existing.get("smtp_email") or None
     if not s_pass:  s_pass  = existing.get("smtp_password") or None
     if not ocr_key: ocr_key = existing.get("ocr_api_key") or None
@@ -219,9 +215,9 @@ def update_settings():
     cursor.execute("""
         UPDATE settings
         SET business_name=%s, gst_number=%s, business_address=%s, currency=%s, fy_start=%s,
-            gemini_api_key=%s, smtp_email=%s, smtp_password=%s, ocr_api_key=%s, show_tooltips=%s
+            smtp_email=%s, smtp_password=%s, ocr_api_key=%s, show_tooltips=%s
         WHERE id=1
-    """, (name, gst, addr, cur, fy, g_key, s_email, s_pass, ocr_key, show_tips))
+    """, (name, gst, addr, cur, fy, s_email, s_pass, ocr_key, show_tips))
     db.commit()
     return redirect(url_for("settings", success="Settings saved! Changes applied everywhere."))
 
@@ -781,52 +777,6 @@ def ocr_scan():
         
     except Exception as e:
         print("OCR Error:", e)
-        return {"error": str(e)}, 500
-
-@app.route("/ask-ai", methods=["POST"])
-def ask_ai():
-    data = request.json
-    user_query = data.get("query", "")
-
-    if not user_query:
-        return {"error": "No query provided"}, 400
-
-    s = get_settings()
-    api_key = s.get("gemini_api_key", "")
-    if not api_key:
-        return {"error": "No Gemini API key set. Please go to Settings → Keys and add your Google Gemini API key."}, 400
-
-    try:
-        genai.configure(api_key=api_key)
-
-        cursor.execute("SELECT ledger_name, ledger_group, balance FROM ledgers")
-        ledgers = cursor.fetchall()
-        ledger_text = "ACCOUNTS:\n" + "\n".join([f"{l[0]} ({l[1]}): Rs.{l[2]}" for l in ledgers])
-
-        cursor.execute("SELECT item_name, quantity, price FROM inventory")
-        inventory = cursor.fetchall()
-        inv_text = "STOCK:\n" + "\n".join([f"{i[0]}: {i[1]} units at Rs.{i[2]}" for i in inventory])
-
-        cursor.execute("SELECT date, voucher_type, amount FROM vouchers ORDER BY id DESC LIMIT 20")
-        vouchers = cursor.fetchall()
-        voucher_text = "RECENT ENTRIES:\n" + "\n".join([f"{v[0]} - {v[1]}: Rs.{v[2]}" for v in vouchers])
-
-        system_prompt = f"""You are a friendly accounting helper for {s.get('business_name','this business')}.
-Here is the current business data:
-
-{ledger_text}
-
-{inv_text}
-
-{voucher_text}
-
-Answer the user's question in very simple, plain language. Avoid accounting jargon. You can use markdown."""
-
-        model = genai.GenerativeModel('gemini-pro')
-        response = model.generate_content(f"{system_prompt}\n\nQuestion: {user_query}")
-        return {"answer": response.text}
-    except Exception as e:
-        print("Gemini API Error:", e)
         return {"error": str(e)}, 500
 
 def open_browser():

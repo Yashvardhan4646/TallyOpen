@@ -54,7 +54,6 @@ Go to **Settings → API Keys & Email Setup** to configure:
 | Feature | Where to get the key |
 |---|---|
 | Send bills by email | Gmail — create an App Password at myaccount.google.com |
-| AI Assistant (Ask AI) | Free at aistudio.google.com/apikey |
 | Scan bills/receipts | Free at ocr.space/ocrapi |
 
 All keys are stored in YOUR database only — never in code.
@@ -77,5 +76,4 @@ All keys are stored in YOUR database only — never in code.
 - 💰 **Money Entries** — Record every payment, sale, and purchase
 - 🧾 **Create a Bill** — Generate professional PDF invoices
 - 📊 **Reports** — View your Profit, Business Value, and Trends
-- 🤖 **AI Assistant** — Ask questions about your business in plain language
 - 📷 **Bill Scanner** — Scan paper bills with your camera

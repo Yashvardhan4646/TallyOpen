@@ -185,34 +185,14 @@
                     <input type="email" name="smtp_email"
                         placeholder="{% if g_settings.smtp_email %}Already saved (leave blank to keep){% else %}yourbusiness@gmail.com{% endif %}">
 
-                    <label class="form-label">Gmail App Password
-                        <span class="tip-icon" data-tip="A special 16-letter password from Google. Go to myaccount.google.com → Security → App Passwords to generate one.">?</span>
+                    <label class="form-label" style="display:flex;justify-content:space-between;align-items:center;">
+                        <span>Gmail App Password <span class="tip-icon" data-tip="A 16-character code from Google that lets this app send emails on your behalf.">?</span></span>
+                        <a href="javascript:void(0)" onclick="openGoogleHelp()" style="font-size:11px;color:var(--accent);text-decoration:underline;">How to get this?</a>
                     </label>
                     <div style="position:relative;">
                         <input type="password" name="smtp_password" id="smtpPass"
                             placeholder="{% if g_settings.smtp_password %}Already saved (leave blank to keep){% else %}xxxx xxxx xxxx xxxx{% endif %}">
                         <button type="button" onclick="toggleVis('smtpPass',this)"
-                            style="position:absolute;right:12px;top:12px;background:none;border:none;cursor:pointer;color:var(--text-3);font-size:14px;">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- ── Gemini AI ── -->
-                <div style="background: #F9F9FF; border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--border);">
-                    <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 4px; display:flex; align-items:center; gap:8px;">
-                        <i class="fas fa-robot" style="color:var(--accent);"></i> AI Assistant Key (Google Gemini)
-                        <span class="tip-icon" data-tip="This key powers the 'Ask AI' chat feature. Get a free key at aistudio.google.com/apikey">?</span>
-                    </h4>
-                    <p style="font-size: 12px; color: var(--text-2); margin-bottom: 14px;">Get a free key at <strong>aistudio.google.com/apikey</strong></p>
-
-                    <label class="form-label">Gemini API Key
-                        <span class="tip-icon" data-tip="Paste your API key from Google AI Studio here. It starts with 'AIza...'">?</span>
-                    </label>
-                    <div style="position:relative;">
-                        <input type="password" name="gemini_api_key" id="geminiKey"
-                            placeholder="{% if g_settings.gemini_api_key %}Already saved (leave blank to keep){% else %}AIza...{% endif %}">
-                        <button type="button" onclick="toggleVis('geminiKey',this)"
                             style="position:absolute;right:12px;top:12px;background:none;border:none;cursor:pointer;color:var(--text-3);font-size:14px;">
                             <i class="fas fa-eye"></i>
                         </button>
@@ -331,6 +311,39 @@
     .tip-icon:hover::after { opacity: 1; }
 </style>
 
+    <!-- GOOGLE HELP MODAL -->
+    <div id="googleHelpModal" class="modal">
+        <div class="modal-content" style="max-width: 500px; text-align: left;">
+            <div class="modal-top">
+                <h2><i class="fab fa-google" style="color:#4285F4; margin-right: 8px;"></i>How to get App Password</h2>
+                <button class="close-modal" onclick="document.getElementById('googleHelpModal').classList.remove('active')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div style="font-size: 14px; line-height: 1.6; color: var(--text);">
+                <p style="margin-bottom: 16px;">Google requires a special <strong>16-character code</strong> to let apps send emails. Follow these steps:</p>
+                
+                <ol style="padding-left: 20px; margin-bottom: 20px;">
+                    <li style="margin-bottom: 8px;">Go to your <strong>Google Account</strong> (myaccount.google.com).</li>
+                    <li style="margin-bottom: 8px;">Click on the <strong>Security</strong> tab on the left.</li>
+                    <li style="margin-bottom: 8px;">Ensure <strong>2-Step Verification</strong> is turned <b>ON</b>.</li>
+                    <li style="margin-bottom: 8px;">Search for <strong>"App Passwords"</strong> in the search bar at the top.</li>
+                    <li style="margin-bottom: 8px;">Enter a name (e.g., <i>"TallyOpen"</i>) and click <strong>Create</strong>.</li>
+                    <li style="margin-bottom: 8px;">A yellow box will show a 16-character code (e.g., <code>abcd efgh ijkl mnop</code>).</li>
+                </ol>
+
+                <div style="background: #FFFBEB; border: 1px solid #FDE68A; padding: 12px; border-radius: 8px; font-size: 13px;">
+                    <i class="fas fa-lightbulb" style="color: #D97706; margin-right: 6px;"></i>
+                    <strong>Copy that code</strong> and paste it into the "Gmail App Password" box here.
+                </div>
+            </div>
+
+            <button class="btn btn-primary" style="width: 100%; margin-top: 20px; justify-content: center;" 
+                onclick="document.getElementById('googleHelpModal').classList.remove('active')">Got it!</button>
+        </div>
+    </div>
+
 <script>
     function showTab(tabId, link) {
         document.querySelectorAll('.tab-pane').forEach(p => p.style.display = 'none');
@@ -352,6 +365,10 @@
             inp.type = 'password';
             btn.innerHTML = '<i class="fas fa-eye"></i>';
         }
+    }
+
+    function openGoogleHelp() {
+        document.getElementById('googleHelpModal').classList.add('active');
     }
 
     // Handle nav clicks
