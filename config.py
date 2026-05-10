@@ -1,6 +1,6 @@
 DB_CONFIG = {
     "host": "localhost",
     "user": "root",
-    "password": "yash@root",
+    "password": "Your_password_here_bro",
     "database": "tally_clone"
 }
